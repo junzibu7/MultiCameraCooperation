@@ -1,1 +1,3 @@
-# multi_camera_fusion
+# multi_camera_cooperation
+
+The depository for cooperative observation with multiple cameras.
