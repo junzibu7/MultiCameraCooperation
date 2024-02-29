@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(multi_camera_fusion)
+project(multi_camera_cooperation)
 
 add_compile_options(-std=c++14 -O3 -g)
 
@@ -150,6 +150,6 @@ target_link_libraries(pnp_ros_lib ${OpenCV_LIBS} yaml-cpp)
 # ==================== Executable Program ==================== #
 
 ## The main executable program to detect target and estimate it pose
-add_executable(multi_camera_fusion_ros src/multi_camera_fusion_ros_test.cpp)
-target_link_libraries(multi_camera_fusion_ros pnp_ros_lib ${catkin_LIBRARIES} ${OpenCV_LIBS})
+add_executable(multi_camera_cooperation_ros src/multi_camera_cooperation_ros_test.cpp)
+target_link_libraries(multi_camera_cooperation_ros pnp_ros_lib ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
