@@ -42,6 +42,8 @@
 #include "uav_config/read_config_drone.h"
 
 #define IMG_COMPRESSED
+#define SHOW_ORIGIN_IMG
+#define USE_4_Point
 
 using namespace std;
 
@@ -109,6 +111,7 @@ public:
     float smooth_threshold = 2;
     bool got_attitude_init = false;
     bool vision_prepare_ok = false;
+    bool roiGoodFlag = false;
     bool opticalReadyFlag = false;
     bool opticalGoodFlag = false;
     bool pnpGoodFlag = false;
@@ -118,7 +121,7 @@ public:
     std::shared_ptr<ConfigParser> uav_config = nullptr;
 
     Pose drone_pose, drone_pose_vicon_init;
-    Pose drone_pose_vicon, drone_neighbour_pose_vicon;
+    Pose drone_pose_vicon, body_pose_vicon;
 //    Attitude drone_attitude_init;
     Eigen::Quaterniond drone_attitude, drone_attitude_init;
     bool drone_attitude_init_flag = true;
@@ -182,7 +185,7 @@ public:
     Eigen::Vector3d  quaternion2euler(float x, float y, float z, float w);
     bool optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsVector);
     bool extractFeatures(cv::Mat &frame, vector<cv::Point2f> &pointsVector);
-    bool img_process(cv::Mat &_ir_img, cv::Rect &rect, vector<cv::Point2f> &pointsVector);
+    bool roi_process(cv::Mat &_ir_img, vector<cv::Point2f> &pointsVector);
     void broadcast_marker_pixel(vector<cv::Point2f> &pointsVector);
     float yaw_esti_pixel_angle_process(vector<cv::Point2f> &pointsVector, vector<cv::Point2f> &pointsVectorNeighbour, ConfigParser &uav, ConfigParser &uav_neighbour);
     bool pnp_process(std::vector<cv::Point2f> &pointsVector);
