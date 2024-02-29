@@ -2,7 +2,7 @@
 <package format="2">
   <name>multi_camera_cooperation</name>
   <version>0.0.0</version>
-  <description>The multi_camera_fusion package</description>
+  <description>The multi_camera_cooperation package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
