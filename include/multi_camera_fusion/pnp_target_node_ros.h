@@ -53,7 +53,7 @@ class PnPTargetNodeROS
 {
 public:
 
-///-------------- ros ---------------///
+//==================== ros ====================//
     ros::Subscriber sub_drone_imu;
     ros::Subscriber sub_drone_vicon_pose;
     ros::Subscriber sub_ir_img;
@@ -69,6 +69,7 @@ public:
     ros::Time stamp;
     cv_bridge::CvImagePtr cv_ptr_compressed_ir;
     cv_bridge::CvImageConstPtr cv_ptr_raw_ir;
+//==================== ros ====================//
 
     ///------------- ir_img process -------------///
     cv::Mat ir_binary;
@@ -180,12 +181,17 @@ public:
      */
     void landmark_pose_solve();
 
+    /**
+     * @brief find ir features in img.
+     * @param model model1为角点检测方法||model2为二值化方法
+     */
+    bool roi_process(cv::Mat &_ir_img, vector<cv::Point2f> &pointsVector, int model);
+
     geometry_msgs::Quaternion euler2quaternion(float roll, float pitch, float yaw);
     Eigen::Quaterniond euler2quaternion_eigen(float roll, float pitch, float yaw);
     Eigen::Vector3d  quaternion2euler(float x, float y, float z, float w);
     bool optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsVector);
     bool extractFeatures(cv::Mat &frame, vector<cv::Point2f> &pointsVector);
-    bool roi_process(cv::Mat &_ir_img, vector<cv::Point2f> &pointsVector);
     void broadcast_marker_pixel(vector<cv::Point2f> &pointsVector);
     float yaw_esti_pixel_angle_process(vector<cv::Point2f> &pointsVector, vector<cv::Point2f> &pointsVectorNeighbour, ConfigParser &uav, ConfigParser &uav_neighbour);
     bool pnp_process(std::vector<cv::Point2f> &pointsVector);

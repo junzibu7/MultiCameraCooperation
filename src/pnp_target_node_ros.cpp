@@ -213,7 +213,7 @@ void PnPTargetNodeROS::landmark_pose_solve(){
   msg_target_pose_from_img_filter.pose.orientation.z = target_q_in_img.z();
   pub_target_pose_from_img_filter.publish(msg_target_pose_from_img_filter);
 */
-  //marker在camera下的位姿
+//marker在camera下的位姿
 #ifdef USE_IMU_DIFF
     T_camera_to_markers.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity(); // landmark在相机下的姿态暂定为Identity()
 #else
@@ -222,7 +222,7 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     T_camera_to_markers.block<3, 1>(0, 3) = target_pos_in_img;
 
 
-    //得到drone1在drone2机体坐标系的位置
+    //得到drone在body坐标系的位置
     T_body_to_drone = T_body_to_camera * T_camera_to_markers * T_markers_to_drone;
     R_body_to_drone = T_body_to_drone.block<3, 3>(0, 0);
 #ifdef USE_IMU_DIFF
@@ -234,7 +234,7 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     printf(YELLOW "[PnP] target_pos_in_img = %.3f, %.3f, %.3f\n" RESET,
         target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
 
-/// Ground Truth >>>
+//======================================= Ground Truth ============================================================//
     Eigen::Vector3d t_body_to_drone_gt = body_pose_vicon.Quat.inverse() * (drone_pose_vicon.pos - body_pose_vicon.pos);//转换到body坐标系
 //  Eigen::Vector3d t_body_to_drone_gt = drone_neighbour_pose_vicon.pos - drone_pose_vicon.pos;//Vicon坐标系
     Eigen::Quaterniond q_body_to_drone_gt = body_pose_vicon.Quat.inverse() * drone_pose_vicon.Quat;
@@ -252,7 +252,7 @@ void PnPTargetNodeROS::landmark_pose_solve(){
   msg_relative_pose.pose.orientation.y = q_body_to_drone_gt.y();
   msg_relative_pose.pose.orientation.z = q_body_to_drone_gt.z();
   pub_relative_pose_mocap.publish(msg_relative_pose);
-  /// <<< Ground Truth
+//======================================= Ground Truth ============================================================//
 
 
 #ifdef ENABLE_VISUALIZATION
@@ -323,59 +323,35 @@ void PnPTargetNodeROS::landmark_pose_solve(){
 }
 
 
-bool PnPTargetNodeROS::roi_process(cv::Mat &_ir_img, cv::Rect &rect, vector<cv::Point2f> &pointsVector) {
+bool PnPTargetNodeROS::roi_process(cv::Mat &_ir_img, cv::Rect &rect, vector<cv::Point2f> &pointsVector, int model){
     ROS_WARN("roi_process function");
     if(_ir_img.empty())
     {
         ROS_ERROR("roi_process, NO _ir_img !!!");
         return false;
     }
-//    printf("[Color image] rect size = x: %d, y = %d, width = %d, height = %d\n", rect.x, rect.y, rect.width, rect.height);
-//    if(uav_config->uav_name == "kun0"){
-//        rect.x = max(rect.x - 20, 0); //此处减去一些，是为了弥补color相机和infra相机的视野差异，为了能让infra相机更好的捕获到ROI
-//        rect.y = max(rect.y - 30, 0);
-//    }else if(uav_config->uav_name == "kun1"){
-//        rect.x = max(rect.x - 90, 0);
-//        rect.y = max(rect.y - 40, 0);
-//    }
-//    printf("[Infra image] rect size = x: %d, y = %d, width = %d, height = %d\n", rect.x, rect.y, rect.width, rect.height);
-//    roi.x = max(int(rect.x + rect.width/2 - rect.width/2 * roi_enlarge_ratio), 0);
-//    roi.y = max(int(rect.y + rect.height/2 - rect.height/2 * roi_enlarge_ratio), 0);
-//    roi.width = min(int(rect.width * 2 * roi_enlarge_ratio), ir_img.cols - roi.x); //此处乘2仅仅是为了增加宽度，没有太多几何数学意义
-//    roi.height = min(int(rect.height * 2 * roi_enlarge_ratio), ir_img.rows - roi.y);
-//    printf("roi size = x: %d, y = %d, width = %d, height = %d\n", roi.x, roi.y, roi.width, roi.height);
-//    ir_img_crop = _ir_img(roi);
 
-    trust_region_mask.setTo(0);
-    ir_img_crop.setTo(0);
-    printf(REDPURPLE "[before roi] trust_region.x = %d, trust_region.y = %d, width = %d, height = %d\n",rect.x, rect.y, rect.width, rect.height);
-    trust_region_mask(rect).setTo(255); //mask在trust_region区域置白色
-    _ir_img.copyTo(ir_img_crop, trust_region_mask); //只将trust_region区域的 _ir_img 保留颜色。
-
-//    cv::imshow("ir_img_crop",ir_img_crop);
-//    cv::imshow("trust_region_mask",trust_region_mask);
-//    cv::waitKey(1);
-
-    if(ir_img_crop.empty()){
-        ROS_ERROR("roi_process crop, NO ir_img_crop !!!");
-        return false;
+    if(model == 1){//尝试用FAST检测特征点
+        if(extractFeatures(ir_img, pointsVector)){
+            printf("[roi process] by extractFeatures get %zu contours\n", pointsVector.size());
+            return true;
+        }else{
+            ROS_ERROR("[roi process] the number of contours is %zu but should be %d", ir_contours_final.size(), landmark_num);
+            return false;
+        }
     }
-    auto ir_crop_msg_img = cv_bridge::CvImage(std_msgs::Header(), "mono8", ir_img_crop).toImageMsg();
-    pub_ir_crop_img.publish(ir_crop_msg_img);
-//    cv::namedWindow("ir_img_crop",cv::WINDOW_NORMAL);
-//    cv::imshow("ir_img_crop", ir_img_crop);
-//    cv::waitKey(1);
 
-    //针对yolo识别到的情况下，判断若轮廓数量少于设定数量,则减小二值化阈值;若轮廓数量大于设定数量,则减小二值化阈值。但这个策略容易对场景中杂点区域也提取出来，误导ROI的选取。所以干脆还是当yolo检测出来时再进行阈值调整
-    if(yoloGoodFlag){ //对于室外难以检测的情况，暂时允许使用默认roi，一般必须是在yolo检测到之后才能进行下一步。
-      //20240116 change to use FAST to detect corner points
-      //尝试用FAST检测角点
-      if(extractFeatures(ir_img_crop, pointsVector)){
-        printf("[roi process] by extractFeatures get %zu contours\n", pointsVector.size());
-        return true;
-      }else{
-        return false;
-      }
+// =====================need complete ====//
+    if(model == 2){//尝试用binary检测特征点
+        if(extractFeatures(ir_img, pointsVector)){
+            printf("[roi process] by extractFeatures get %zu contours\n", pointsVector.size());
+            return true;
+        }else{
+            ROS_ERROR("[roi process] the number of contours is %zu but should be %d", ir_contours_final.size(), landmark_num);
+            return false;
+        }
+    }
+// =====================need complete ====//
 
         /**之前的寻找轮廓的方法**/
         /*{
@@ -393,7 +369,7 @@ bool PnPTargetNodeROS::roi_process(cv::Mat &_ir_img, cv::Rect &rect, vector<cv::
 
             if(ir_contours.size() < landmark_num){
                 ir_binary_threshold -= 5;
-                printf(YELLOW "[down] ir_binary_threshold set to %d\n", ir_binary_threshold);
+                printf(YELLOW "[down] ir_binary_threshold set to %d\n", ir_binary_threshold);int
                 if(ir_binary_threshold <= 20){
                     ir_binary_threshold = 100;
                     return false;
@@ -474,77 +450,49 @@ bool PnPTargetNodeROS::roi_process(cv::Mat &_ir_img, cv::Rect &rect, vector<cv::
         //依据每个点的上下左右关系确定对应的0,1,2,3,4,5号ID，按照从上到下，从左到右的顺序。
         //先上下排列，选出上下两排
 //        sort(pointsVector.begin(), pointsVector.end(), marker_compare_y);
-        sort(pointsVector.begin(), pointsVector.end(), [=](cv::Point pt1, cv::Point pt2){return  pt1.y < pt2.y;});
+    
+//         sort(pointsVector.begin(), pointsVector.end(), [=](cv::Point pt1, cv::Point pt2){return  pt1.y < pt2.y;});
 
-#ifdef USE_4_Point
-        std::vector<cv::Point2f> marker_pixels_up, marker_pixels_down;
-        marker_pixels_up.emplace_back(pointsVector[0]);
-        marker_pixels_up.emplace_back(pointsVector[1]);
-        marker_pixels_down.emplace_back(pointsVector[2]);
-        marker_pixels_down.emplace_back(pointsVector[3]);
-#endif
-        //从左向右排列，选出序号
-//        sort(marker_pixels_up.begin(), marker_pixels_up.end(), marker_compare_x);
-//        sort(marker_pixels_down.begin(), marker_pixels_down.end(), marker_compare_x);
-        sort(marker_pixels_up.begin(), marker_pixels_up.end(), [=](cv::Point pt1, cv::Point pt2){return  pt1.x < pt2.x;});
-        sort(marker_pixels_down.begin(), marker_pixels_down.end(), [=](cv::Point pt1, cv::Point pt2){return  pt1.x < pt2.x;});
-        //使用上面的点
-        for (int i = 0;  i < marker_pixels_up.size(); i++) {
-            marker_pixels_sorted.emplace_back(marker_pixels_up[i]);
-        }
-        //使用下面的点
-        for (int i = 0;  i < marker_pixels_down.size(); i++) {
-            marker_pixels_sorted.emplace_back(marker_pixels_down[i]);
-        }
-        for (int i = 0;  i < marker_pixels_sorted.size(); i++){
-            std::cout << "[roi process] pixel xy: " << marker_pixels_sorted[i].x << ", " << marker_pixels_sorted[i].y << std::endl;
-        }
-        pointsVector.clear();
-//        pointsVector = marker_pixels_sorted; //改用下面refine
-        //再采用灰度图去refine坐标
-        if(!refine_pixel(marker_pixels_sorted,pointsVector,ir_img)){
-            printf(RED"refine_pixel failed! use origin points.\n" RESET);
-            pointsVector.clear();
-            pointsVector = marker_pixels_sorted;
-        }
+// #ifdef USE_4_Point
+//     std::vector<cv::Point2f> marker_pixels_up, marker_pixels_down;
+//     marker_pixels_up.emplace_back(pointsVector[0]);
+//     marker_pixels_up.emplace_back(pointsVector[1]);
+//     marker_pixels_down.emplace_back(pointsVector[2]);
+//     marker_pixels_down.emplace_back(pointsVector[3]);
+// #endif
+//         //从左向右排列，选出序号
+// //        sort(marker_pixels_up.begin(), marker_pixels_up.end(), marker_compare_x);
+// //        sort(marker_pixels_down.begin(), marker_pixels_down.end(), marker_compare_x);
+//         sort(marker_pixels_up.begin(), marker_pixels_up.end(), [=](cv::Point pt1, cv::Point pt2){return  pt1.x < pt2.x;});
+//         sort(marker_pixels_down.begin(), marker_pixels_down.end(), [=](cv::Point pt1, cv::Point pt2){return  pt1.x < pt2.x;});
+//         //使用上面的点
+//         for (int i = 0;  i < marker_pixels_up.size(); i++) {
+//             marker_pixels_sorted.emplace_back(marker_pixels_up[i]);
+//         }
+//         //使用下面的点
+//         for (int i = 0;  i < marker_pixels_down.size(); i++) {
+//             marker_pixels_sorted.emplace_back(marker_pixels_down[i]);
+//         }
+//         for (int i = 0;  i < marker_pixels_sorted.size(); i++){
+//             std::cout << "[roi process] pixel xy: " << marker_pixels_sorted[i].x << ", " << marker_pixels_sorted[i].y << std::endl;
+//         }
+//         pointsVector.clear();
+// //        pointsVector = marker_pixels_sorted; //改用下面refine
+//         //再采用灰度图去refine坐标
+//         if(!refine_pixel(marker_pixels_sorted,pointsVector,ir_img)){
+//             printf(RED"refine_pixel failed! use origin points.\n" RESET);
+//             pointsVector.clear();
+//             pointsVector = marker_pixels_sorted;
+//         }
+//         return true;
 
-        //在roi检测阶段，trust_region以检测出的目标区域块为中心的3*3的9个区域块都为置信区域
-        /* 20231205 do not update trust_region unless yolo_detect
-        cv::Rect rect_temp;
-        rect_temp.x = (int)pointsVector[0].x;
-        rect_temp.y = (int)pointsVector[0].y;
-        rect_temp.width = (int)pointsVector[3].x - (int)pointsVector[0].x;
-        rect_temp.height = (int)pointsVector[4].y - (int)pointsVector[0].y;
-        trust_region.x = max(rect_temp.x - 1 * rect_temp.width, 0);
-        trust_region.y = max(rect_temp.y - 3 * rect_temp.height, 0);
-        trust_region.width = min(rect_temp.width * 3, 640 - trust_region.x);
-        trust_region.height = min(rect_temp.height * 7, 480 - trust_region.y);
-        printf("[rect_temp after ROI process] .x = %d, .y = %d, width = %d, height = %d\n", rect_temp.x, rect_temp.y, rect_temp.width, rect_temp.height);
-        printf("[trust_region after ROI process] .x = %d, .y = %d, width = %d, height = %d\n", trust_region.x, trust_region.y, trust_region.width, trust_region.height);
-        */
-        return true;
-    }
-    else{
-        ROS_ERROR("[roi process] the number of contours is %zu but should be %d", ir_contours_final.size(), landmark_num);
-        return false;
-    }
 }
 
 bool PnPTargetNodeROS::extractFeatures(cv::Mat &frame, vector<cv::Point2f> &pointsVector){
     pointsVector.clear();
     cv::goodFeaturesToTrack(frame, pointsVector, landmark_num, 0.01, 10);
-    //展示检测结果
-    /*
-    cv::Mat ir_img_color_show_feat = cv::Mat::zeros(frame.size(), CV_8UC3);
-    cv::cvtColor(frame, ir_img_color_show_feat, CV_GRAY2BGR);
-    for (int i = 0; i < pointsVector.size(); i++) {
-        cv::circle(ir_img_color_show_feat, pointsVector[i], 2, cv::Scalar(0, 255, 0), -1);
-    }
-    cv::imshow("ir_img_color_show_feat", ir_img_color_show_feat);
-    cv::waitKey(1);
-    */
+
 #ifdef USE_4_Point
-    //依据每个点的上下左右关系确定对应的0,1,2,3,4号ID，其中需要跳过中间指示IR镜头的2号点，按照0-topLeft, 1-topRight, 3-bottomLeft, 4-bottomRight。
     sort(pointsVector.begin(), pointsVector.end(), [=](cv::Point pt1, cv::Point pt2){return  pt1.x < pt2.x;});
     std::vector<cv::Point2f> marker_pixels_left(pointsVector.begin(), pointsVector.begin() + 2);
     std::vector<cv::Point2f> marker_pixels_right(pointsVector.begin() + 3, pointsVector.begin() + 5);
@@ -564,13 +512,7 @@ bool PnPTargetNodeROS::extractFeatures(cv::Mat &frame, vector<cv::Point2f> &poin
     //    std::cout << "[roi process] pixel xy: " << marker_pixels_sorted[i].x << ", " << marker_pixels_sorted[i].y << std::endl;
     //  }
     pointsVector.clear();
-    pointsVector = marker_pixels_sorted; //改用下面refine，如果采用角点提取的办法，则不需要refine
-    //再采用灰度图去refine坐标
-    //  if(!refine_pixel(marker_pixels_sorted,pointsVector,ir_img)){
-    //    printf(RED"refine_pixel failed! use origin points.\n" RESET);
-    //    pointsVector.clear();
-    //    pointsVector = marker_pixels_sorted;
-    //  }
+    pointsVector = marker_pixels_sorted;
 
     //use the distance between landmarks to check
     double x_10 = pointsVector[1].x - pointsVector[0].x;
@@ -601,40 +543,18 @@ bool PnPTargetNodeROS::optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsV
         ROS_ERROR("optical_follow ,NO frame !!!");
         return false;
     }
-    //使用trust_region对区域外的图像像素均置为0，避免杂光点干扰光流
-    trust_region_mask.setTo(0);
-    nextImg.setTo(0);
-    if(opticalGoodFlag){
-      printf(REDPURPLE "[before optical_flow] opti_trust_region.x = %d, .y = %d, width = %d, height = %d\n", opti_trust_region.x, opti_trust_region.y, opti_trust_region.width, opti_trust_region.height);
-      trust_region_mask(opti_trust_region).setTo(255); //mask在trust_region区域置白色
-      frame.copyTo(nextImg, trust_region_mask); //只将trust_region区域的 frame 保留颜色。
-    }else if(yoloGoodFlag){
-      printf(REDPURPLE "[before optical_flow] yolo_trust_region.x = %d, .y = %d, width = %d, height = %d\n", yolo_trust_region.x, yolo_trust_region.y, yolo_trust_region.width, yolo_trust_region.height);
-      trust_region_mask(yolo_trust_region).setTo(255); //mask在trust_region区域置白色
-      frame.copyTo(nextImg, trust_region_mask); //只将trust_region区域的 frame 保留颜色。
-    }else{
-        nextImg = frame;
-    }
+    
+    nextImg = frame;
 
 //    cv::imshow("nextImg",nextImg);
 //    cv::waitKey(1);
 
     //20240116尝试先用Fast去提取点，如果错误，然后再用光流跟踪
     if(extractFeatures(nextImg, nextImgPts)){
-        //将trust_region重新置为光流追踪后的点的外延区域，trust_region以检测出的目标区域块为中心的3*3的9个区域块都为置信区域
-        // 20231205 not use trust_region after optical flow
         cv::Rect rect_temp;
         rect_temp.x = (int)nextImgPts[0].x;
         rect_temp.y = (int)nextImgPts[0].y;
-#ifdef USE_6_Corner_Point
-        rect_temp.width = (int)nextImgPts[3].x - (int)nextImgPts[0].x;
-        rect_temp.height = (int)nextImgPts[4].y - (int)nextImgPts[0].y;
-        opti_trust_region.x = max(rect_temp.x - (int)(0.5 * rect_temp.width), 0);
-        opti_trust_region.y = max(rect_temp.y - (int)(1.5 * rect_temp.height), 0);
-        opti_trust_region.width = min((int)(rect_temp.width * 2), 640 - opti_trust_region.x);
-        opti_trust_region.height = min((int)(rect_temp.height * 4), 480 - opti_trust_region.y);
-#endif
-#ifdef USE_4_Square_Point
+#ifdef USE_4_Point
       rect_temp.width = (int)nextImgPts[1].x - (int)nextImgPts[0].x;
       rect_temp.height = (int)nextImgPts[2].y - (int)nextImgPts[0].y;
       opti_trust_region.x = max(rect_temp.x - (int)(0.5 * rect_temp.width), 0);
@@ -712,21 +632,8 @@ bool PnPTargetNodeROS::optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsV
     }
     //光流之后也需要做检查，保证没有追踪错误，否则直接return false. 按行坐标[3]>[2]>[1]>[0],第二行[4]<[1]。按列坐标[4]>[0],[5]>[2]
   //use the distance between landmarks to check
-#ifdef USE_6_Corner_Point
-  double x_20 = pointsVector[2].x - pointsVector[0].x;
-  double x_54 = pointsVector[5].x - pointsVector[4].x;
-  double x_31 = pointsVector[3].x - pointsVector[1].x;
-  if(abs(x_20 - x_54) > 5 || abs(x_20 - x_31) > 5 || abs(x_54 - x_31) > 5){
-    printf(BOLDRED "[Geometry Check False] x_20: %f, x_54: %f, x_31: %f" RESET, x_20, x_54, x_31);
-    printf(BOLDRED "optical flow pts check failed, because:\n" RESET);
-    for (int i = 0; i < nextImgPts.size(); i++) {
-      printf("[after opti_flow] nextImgPts[%d].x = %f, .y = %f\n", i, nextImgPts[i].x, nextImgPts[i].y);
-    }
-    return false;
-  }
-#endif
 
-#ifdef USE_4_Square_Point
+#ifdef USE_4_Point
   //use the distance between landmarks to check
   double x_10 = pointsVector[1].x - pointsVector[0].x;
   double x_32 = pointsVector[3].x - pointsVector[2].x;
@@ -756,15 +663,7 @@ bool PnPTargetNodeROS::optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsV
         cv::Rect rect_temp;
         rect_temp.x = (int)nextImgPts[0].x;
         rect_temp.y = (int)nextImgPts[0].y;
-#ifdef USE_6_Corner_Point
-        rect_temp.width = (int)nextImgPts[3].x - (int)nextImgPts[0].x;
-        rect_temp.height = (int)nextImgPts[4].y - (int)nextImgPts[0].y;
-        opti_trust_region.x = max(rect_temp.x - (int)(0.5 * rect_temp.width), 0);
-        opti_trust_region.y = max(rect_temp.y - (int)(1.5 * rect_temp.height), 0);
-        opti_trust_region.width = min((int)(rect_temp.width * 2), 640 - opti_trust_region.x);
-        opti_trust_region.height = min((int)(rect_temp.height * 4), 480 - opti_trust_region.y);
-#endif
-#ifdef USE_4_Square_Point
+#ifdef USE_4_Point
         rect_temp.width = (int)nextImgPts[1].x - (int)nextImgPts[0].x;
         rect_temp.height = (int)nextImgPts[2].y - (int)nextImgPts[0].y;
         opti_trust_region.x = max(rect_temp.x - (int)(0.5 * rect_temp.width), 0);
@@ -794,45 +693,8 @@ bool PnPTargetNodeROS::optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsV
 
 bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
     printf("pnp_process function, opticalGoodFlag = %d, roiGoodFlag = %d\n",opticalGoodFlag, roiGoodFlag);
-//    if(opticalGoodFlag){
-//      printf(BOLDGREEN "opticalGoodFlag true\n" RESET);
-//    }else{
-//      printf(BOLDRED "opticalGoodFlag false\n" RESET);
-//    }
-//    cout << "opticalGoodFlag = " << opticalGoodFlag <<endl;
-//    cout << "roiGoodFlag = " << roiGoodFlag <<endl;
 
-    // 判断6个点是否组成梯形，否则放弃这6个点
-    // 上下底线平行,20231021先注释不用
-
-//    float ratio = 1.0;
-//    float up_k = abs(pointsVector[0].y - pointsVector[3].y) / abs(pointsVector[0].x - pointsVector[3].x);
-//    float down_k = abs(pointsVector[4].y - pointsVector[5].y) / abs(pointsVector[4].x - pointsVector[5].x);
-//    if(down_k == 0.0 || up_k == 0.0){
-//        if(abs(up_k - down_k) < 0.01){
-//            ratio = 1.0;
-//        }
-//    }else{
-//        ratio = up_k/down_k;
-//    }
-//    if( ratio < 0.3 || ratio > 2.0){
-//        if(abs(up_k - down_k) > 0.2){
-//            ROS_ERROR("[Geometry Check False] up_k: %f, down_k: %f, k ratio is %f", up_k, down_k, ratio);
-//            return false;
-//        }
-//    }
-#ifdef USE_6_Corner_Point
-    //use the distance between landmarks to check
-    double x_20 = pointsVector[2].x - pointsVector[0].x;
-    double x_54 = pointsVector[5].x - pointsVector[4].x;
-    double x_31 = pointsVector[3].x - pointsVector[1].x;
-    if(abs(x_20 - x_54) > 5 || abs(x_20 - x_31) > 5 || abs(x_54 - x_31) > 5){
-        ROS_ERROR(BOLDRED "[Geometry Check False] x_20: %f, x_54: %f, x_31: %f" RESET, x_20, x_54, x_31);
-        return false;
-    }
-#endif
-
-#ifdef USE_4_Square_Point
+#ifdef USE_4_Point
   //use the distance between landmarks to check
   double x_10 = pointsVector[1].x - pointsVector[0].x;
   double x_32 = pointsVector[3].x - pointsVector[2].x;
@@ -843,26 +705,10 @@ bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
     return false;
   }
 #endif
-    vector<cv::Point2f> pointsVectorForPnP;
-    for (int i = 0; i < pointsVector.size() - 1; i++) { //最后一个点是指示IR相机的点，不用放入PnP
-//        circle(ir_img_color_show, pointsVector[i], 5, cv::Scalar(0,0,255), 1, 8); //在识别landmark上画点
-//        if(i+1 == pointsVector.size()){ //将识别的点依次连成线
-//            line(ir_img_color_show, pointsVector[i], pointsVector[0], cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-//        }else{
-//            line(ir_img_color_show, pointsVector[i], pointsVector[i+1], cv::Scalar(0, 255, 0), 1, cv::LINE_AA);
-//        }
-        //将像素坐标点画在图像上
-//        string point_px = to_string(int(pointsVector[i].x)%100) + "," +to_string(int(pointsVector[i].y)%100); //三位数画不下，先除余，只画十位和个位
-//        cv::putText(ir_img_color_show,
-//                    point_px,
-//                    cv::Point(pointsVector[i].x-15, pointsVector[i].y-5), cv::FONT_HERSHEY_TRIPLEX ,0.25,cv::Scalar(0,200,250),1,cv::LINE_AA,false);
-        cv::circle(ir_img_color_show, cv::Point2i(pointsVector[i].x, pointsVector[i].y), 2,  cv::Scalar(0,0,255), 1, cv::LINE_AA);
-        pointsVectorForPnP.emplace_back(cv::Point2f(pointsVector[i].x, pointsVector[i].y));
-//        std::cout << "before solve pnp "<< pointsVector[i].x << pointsVector[i].y << std::endl;
-    }
+
     //solvePnP
-//    solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_EPNP);
-    solvePnP(drone_landmarks_cv, pointsVectorForPnP, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_IPPE);//要求点共面，求解精度更高，不抖动
+    cv::circle(ir_img_color_show, cv::Point2i(pointsVector[i].x, pointsVector[i].y), 2,  cv::Scalar(0,0,255), 1, cv::LINE_AA);
+    solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_EPNP);
     Eigen::Vector3d eulerAngles;
     getEulerAngles(outputRvecRaw,eulerAngles, target_q_in_img);
     target_pos_in_img << outputTvecRaw.val[0], outputTvecRaw.val[1], outputTvecRaw.val[2];
