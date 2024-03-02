@@ -8,8 +8,8 @@ using namespace std;
 void PnPTargetNodeROS::init(ros::NodeHandle &nh) {
 
 //============== Read ros parameter =====================//
-    std::string uav_config_file
-    int drone_id
+    std::string uav_config_file;
+    int drone_id;
 
     nh.param<double>("PnP_time_delay", PnP_time_delay, 0.0);//PnP检测中，由相机捕获、程序处理、滤波等带来的时间延迟
     nh.param<int>("ir_binary_threshold", ir_binary_threshold, 50);
@@ -145,12 +145,11 @@ void PnPTargetNodeROS::ir_compressed_img_cb(const sensor_msgs::CompressedImage::
     //   yaw_initialized_flag = init_relative_yaw();
     //   return;
     // }
-    if(uav_config->uav_name == "kun0"){
-        landmark_pose_solve();//解算对方landmark在自身坐标系下位置，roll,pitch采用imu解算，yaw采用像素差解算(yaw始终是kun1在kun0坐标系下的相对yaw)，kun0需要得知另一个僚机的位置
-    }else if(uav_config->uav_name == "kun1"){
-        self_pose_solve();//解算自身在对方坐标系下的位置，roll,pitch采用imu解算，yaw采用像素差解算(yaw始终是kun1在kun0坐标系下的相对yaw),kun1要得到自己在主机坐标系下位置，用于反馈控制
+    if(ir_img.empty()){
+        printf(RED"Not receive valid ir_img\n");
+        return;
     }
-}
+    landmark_pose_solve();
 
 void PnPTargetNodeROS::ir_raw_img_cb(const sensor_msgs::Image::ConstPtr &msg){
 //  ROS_INFO("ir_img_cb");
@@ -549,7 +548,7 @@ bool PnPTargetNodeROS::optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsV
 //    cv::imshow("nextImg",nextImg);
 //    cv::waitKey(1);
 
-    //20240116尝试先用Fast去提取点，如果错误，然后再用光流跟踪
+    //尝试先用Fast去提取点，如果错误，然后再用光流跟踪
     if(extractFeatures(nextImg, nextImgPts)){
         cv::Rect rect_temp;
         rect_temp.x = (int)nextImgPts[0].x;
