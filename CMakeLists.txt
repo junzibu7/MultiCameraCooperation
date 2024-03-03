@@ -64,7 +64,7 @@ include_directories(
   src
 )
 
-# MESSAGE("uav_config_INCLUDE_DIRS": ${uav_config_INCLUDE_DIRS})
+MESSAGE('uav_config_INCLUDE_DIRS:'${uav_config_INCLUDE_DIRS})
 MESSAGE('My OpenCV_INCLUDE_DIRS:'${OpenCV_INCLUDE_DIRS})
 
 # ==================== PnP core library ==================== #

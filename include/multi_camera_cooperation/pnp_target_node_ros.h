@@ -1,5 +1,5 @@
-#ifndef PNP_TARGET_ROS_H
-#define PNP_TARGET_ROS_H
+#ifndef PNP_TARGET_NODE_ROS_H
+#define PNP_TARGET_NODE_ROS_H
 
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -217,4 +217,4 @@ public:
 };
 
 
-#endif //PNP_TARGET_ROS_H
+#endif //PNP_TARGET_NODE_ROS_H

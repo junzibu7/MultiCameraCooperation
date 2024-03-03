@@ -1,9 +1,12 @@
 //
 // Created by hzj on 24-2-28.
 //
-#include <multi_camera_cooperation/multi_camera_cooperation_ros_test.h>
+// #include <multi_camera_cooperation/multi_camera_cooperation_ros_test.h>
+#include "multi_camera_cooperation/pnp_target_node_ros.h"
 
 using namespace std;
+
+// PnPTargetNodeROS pnp_manager;
 
 int main(int argc, char **argv)
 {
@@ -14,6 +17,7 @@ int main(int argc, char **argv)
     ros::Rate rate(30);
 
     std::cout << "Init MultiCameraCooperation" << std::endl;
+    // pnp_manager.init(nh);
 
     ros::spin();
 }
