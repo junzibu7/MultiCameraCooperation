@@ -12,6 +12,8 @@
 #include <sensor_msgs/CompressedImage.h>
 #include <sensor_msgs/Imu.h>
 #include <image_transport/image_transport.h>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <Eigen/Eigen>
 #include <Eigen/Dense>
@@ -24,7 +26,11 @@
 #include <opencv2/core/utility.hpp>
 #include <opencv2/core.hpp>
 #include <opencv2/calib3d.hpp>
+#include <opencv2/video/tracking.hpp>
 #include <cv_bridge/cv_bridge.h>
+
+#include <multi_camera_cooperation/colors.h>
+#include <multi_camera_cooperation/Markers.h>
 
 #include <cstdlib>
 #include <cstdlib>
@@ -56,6 +62,7 @@ public:
 //==================== ros ====================//
     ros::Subscriber sub_drone_imu;
     ros::Subscriber sub_drone_vicon_pose;
+    ros::Subscriber sub_drone_vio_pose;
     ros::Subscriber sub_ir_img;
 
     ros::Publisher pub_drone_vicon_pose;
@@ -65,6 +72,8 @@ public:
     ros::Publisher pub_ir_erode_dilate_img;
     ros::Publisher pub_ir_contours_img;
     ros::Publisher pub_marker_pixel;
+    ros::Publisher pub_target_pose_in_body;
+    ros::Publisher pub_relative_pose_mocap;
     std::string marker_pixel_topic;
     ros::Time stamp;
     cv_bridge::CvImagePtr cv_ptr_compressed_ir;
@@ -72,10 +81,14 @@ public:
 //==================== ros ====================//
 
     ///------------- ir_img process -------------///
+    cv::Mat ir_img;
+    cv::Mat ir_img_color_show;
     cv::Mat ir_binary;
     int ir_binary_threshold = 50; //二值化阈值
     std::string write_image_path; //写入图像到本地用于分析
     bool haveWrite = false;
+    std::vector<cv::Point2f> marker_pixels;
+    std::vector<cv::Point2f> marker_pixels_sorted;
     //dilate
     cv::Mat erodeElement = getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
     cv::Mat dilateElement = getStructuringElement(cv::MORPH_RECT,cv::Size(3, 3));
@@ -92,6 +105,7 @@ public:
     std::vector<cv::Point2f> pnpImgPts;
     std::vector<uchar> status;
     std::vector<float> err;
+    cv::Rect opti_trust_region = cv::Rect(0,0,640,480);//默认参数，opti Track 目标后，将目标外沿选取更大的一片可信区域，时刻随目标变化而变化;
     cv::TermCriteria termcrit = cv::TermCriteria(cv::TermCriteria::EPS, 100, 0.001);
     cv::Size winSize = cv::Size(25, 25);
     int win_width = 4;//用于对光流追踪后的点，在光点附近win_width的窗口内进一步取中心点坐标
@@ -140,6 +154,7 @@ public:
     Eigen::Matrix3d R_body_to_drone = Eigen::Matrix3d::Identity();
     Eigen::Vector3d t_body_to_drone = Eigen::Vector3d::Zero();
     Eigen::Quaterniond q_body_to_drone = Eigen::Quaterniond::Identity();
+    geometry_msgs::PoseStamped msg_target_pose_from_img;
 
     ///------------ Complementary filter for calculate position velocity state ----------///
     // std::shared_ptr<ComplementaryFilter> filter;
@@ -185,7 +200,7 @@ public:
      * @brief find ir features in img.
      * @param model model1为角点检测方法||model2为二值化方法
      */
-    bool roi_process(cv::Mat &_ir_img, vector<cv::Point2f> &pointsVector, int model);
+    bool ir_img_process(cv::Mat &_ir_img, vector<cv::Point2f> &pointsVector, int model);
 
     geometry_msgs::Quaternion euler2quaternion(float roll, float pitch, float yaw);
     Eigen::Quaterniond euler2quaternion_eigen(float roll, float pitch, float yaw);

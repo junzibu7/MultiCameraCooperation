@@ -21,16 +21,16 @@ void PnPTargetNodeROS::init(ros::NodeHandle &nh) {
     uav_config = make_shared<ConfigParser>(uav_config_file);
 
 //===== Read camera intrinsics and extrinsic with yaml-cpp =====//
-    T_body_to_camera = uav_config->right_side_camera.color_camera.T_imu_camColor * uav_config->right_side_camera.ir_camera.T_camColor_camIR * uav_config->T_cam_image;
-    cameraMatrix = (cv::Mat_<double>(3, 3) << uav_config->right_side_camera.ir_camera.fx, 0, uav_config->right_side_camera.ir_camera.cx, 0, uav_config->right_side_camera.ir_camera.fy, uav_config->right_side_camera.ir_camera.cy, 0, 0, 1);
+    T_body_to_camera = uav_config->cameraA.color_camera.T_body_camColor * uav_config->cameraA.ir_camera.cam1.T_camColor_camIR1 * uav_config->T_cam_image;
+    cameraMatrix = (cv::Mat_<double>(3, 3) << uav_config->cameraA.ir_camera.cam1.fx, 0, uav_config->cameraA.ir_camera.cam1.cx, 0, uav_config->cameraA.ir_camera.cam1.fy, uav_config->cameraA.ir_camera.cam1.cy, 0, 0, 1);
     for (int i = 0; i < 5; ++i) {
-        distCoeffs_r.emplace_back(uav_config->right_side_camera.ir_camera.D[i]);
+        distCoeffs.emplace_back(uav_config->cameraA.ir_camera.cam1.D[i]);
     }
 //===== Read camera intrinsics and extrinsic with yaml-cpp =====//
 
 
 //======================== Read IRlandmark extrinsic ========================//
-    T_markers_to_drone = uav_config->ir_landmark.T_imu_IRLandmark.inverse();
+    T_markers_to_drone = uav_config->ir_landmark.T_marker_IRLandmark.inverse();
     landmark_num = uav_config->ir_landmark.number;
     for (int i = 0; i < landmark_num; ++i) {
         drone_landmarks_cv.emplace_back(cv::Point3f(uav_config->ir_landmark.layout(0,i)/1000.0, uav_config->ir_landmark.layout(1,i)/1000.0, uav_config->ir_landmark.layout(2,i)/1000.0));
@@ -40,7 +40,7 @@ void PnPTargetNodeROS::init(ros::NodeHandle &nh) {
     
 //============================= Initialize ROS topic =============================//
 #ifdef IMG_COMPRESSED
-    sub_ir_img = nh.subscribe("/ir_mono", 1, &PnPTargetNodeROS::ir_compressed_img_cb_r, this);
+    sub_ir_img = nh.subscribe("/ir_mono", 1, &PnPTargetNodeROS::ir_compressed_img_cb, this);
 #else
     sub_ir_img = nh.subscribe("/ir_mono", 1, &PnPTargetNodeROS::ir_raw_img_cb, this);
 #endif
@@ -50,22 +50,23 @@ void PnPTargetNodeROS::init(ros::NodeHandle &nh) {
     
 #ifdef SHOW_ORIGIN_IMG
     pub_ir_img = nh.advertise<sensor_msgs::Image>("ir_mono/origin",1);
-    pub_color_img = nh.advertise<sensor_msgs::Image>("color_mono/origin",1);
 #endif
-    pub_marker_pixel = nh.advertise<pnp_target_node::Markers>("/marker_pixel",10);
-    pub_relative_attitude_by_marker_pixel = nh.advertise<geometry_msgs::PoseStamped>("relative_pose_by_marker_pixel",10);
-    pub_drone_vicon_pose = nh.advertise<nav_msgs::Odometry>("vicon/pose_correct", 1);
+    pub_marker_pixel = nh.advertise<multi_camera_cooperation::Markers>("/marker_pixel",10);
+    // pub_relative_attitude_by_marker_pixel = nh.advertise<geometry_msgs::PoseStamped>("relative_pose_by_marker_pixel",10);
+    pub_drone_vicon_pose = nh.advertise<geometry_msgs::PoseStamped>("vicon/pose_correct", 1);
     pub_ir_show_img = nh.advertise<sensor_msgs::Image>("ir_mono/show",1);
     // pub_ir_crop_img = nh.advertise<sensor_msgs::Image>("ir_mono/ir_crop",1);
     // pub_ir_binary_img = nh.advertise<sensor_msgs::Image>("ir_mono/ir_binary",1);
     // pub_ir_erode_dilate_img = nh.advertise<sensor_msgs::Image>("ir_mono/ir_erode_dilate",1);
     // pub_target_pose_from_img = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_from_img", 1);
     // pub_target_pose_from_img_filter = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_from_img_filter", 1);
-    // pub_target_pose_in_body = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_in_body", 1);
+    pub_target_pose_in_body = nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/topic_target_pose_in_body", 1);
     // pub_target_pose_in_enu = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_in_enu", 1);
     // pub_target_pose_in_enu_vicon = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_in_enu_vicon", 1);
-    // pub_relative_pose_mocap =  nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/relative_pose_cam2target_mocap", 1);
-    pub_drone_model = nh.advertise<visualization_msgs::MarkerArray>("/drone_model", 1);//cbhzj
+    pub_relative_pose_mocap =  nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/relative_pose_cam2target_mocap", 1);
+
+
+    // pub_drone_model = nh.advertise<visualization_msgs::MarkerArray>("/drone_model", 1);
     
     if(uav_config->uav_name == "kun0"){
       printf(YELLOW "[kun0] Publisher landmark_pose_solve: %s\n", pub_target_pose_in_body.getTopic().c_str());
@@ -150,6 +151,7 @@ void PnPTargetNodeROS::ir_compressed_img_cb(const sensor_msgs::CompressedImage::
         return;
     }
     landmark_pose_solve();
+}
 
 void PnPTargetNodeROS::ir_raw_img_cb(const sensor_msgs::Image::ConstPtr &msg){
 //  ROS_INFO("ir_img_cb");
@@ -182,7 +184,7 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     if(!opticalGoodFlag){
         ROS_WARN("optical flow fails, try to roi detect!");
         marker_pixels.clear();
-        roiGoodFlag = roi_process(ir_img, marker_pixels);
+        roiGoodFlag = ir_img_process(ir_img, marker_pixels, 1);
     }
     //如果光流或者ROI得到 marker_pixels,进行PnP解算
     if(opticalGoodFlag || roiGoodFlag){
@@ -322,11 +324,11 @@ void PnPTargetNodeROS::landmark_pose_solve(){
 }
 
 
-bool PnPTargetNodeROS::roi_process(cv::Mat &_ir_img, cv::Rect &rect, vector<cv::Point2f> &pointsVector, int model){
-    ROS_WARN("roi_process function");
+bool PnPTargetNodeROS::ir_img_process(cv::Mat &_ir_img, vector<cv::Point2f> &pointsVector, int model){
+    ROS_WARN("ir_img_process function");
     if(_ir_img.empty())
     {
-        ROS_ERROR("roi_process, NO _ir_img !!!");
+        ROS_ERROR("ir_img_process, NO _ir_img !!!");
         return false;
     }
 
@@ -706,7 +708,6 @@ bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
 #endif
 
     //solvePnP
-    cv::circle(ir_img_color_show, cv::Point2i(pointsVector[i].x, pointsVector[i].y), 2,  cv::Scalar(0,0,255), 1, cv::LINE_AA);
     solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_EPNP);
     Eigen::Vector3d eulerAngles;
     getEulerAngles(outputRvecRaw,eulerAngles, target_q_in_img);
@@ -863,12 +864,12 @@ Eigen::Vector3d PnPTargetNodeROS::quaternion2euler(float x, float y, float z, fl
 void PnPTargetNodeROS::getEulerAngles(cv::Vec3d &rvec, Eigen::Vector3d &eulerAngles, Eigen::Quaterniond &q){
     cv::Vec3d rvec_n = normalize(rvec);
     double n = norm(rvec);
-    Eigen::AngleAxisd rotation_vector(n,Vector3d(rvec_n[0],rvec_n[1],rvec_n[2]));
+    Eigen::AngleAxisd rotation_vector(n,Eigen::Vector3d(rvec_n[0],rvec_n[1],rvec_n[2]));
     Eigen::Matrix3d R;
 //    std::cout << "n = " << n << "\trecv_n = " << rvec_n[0] << " " << rvec_n[0] << " " << rvec_n[0] << std::endl;
     R = rotation_vector.toRotationMatrix();
 //    std::cout << "R = " << R.matrix() << std::endl;
-    q = Quaterniond(rotation_vector);
+    q = Eigen::Quaterniond(rotation_vector);
 //    std::cout << "q = " << q.coeffs().transpose() << std::endl;
     eulerAngles = R.eulerAngles(2,1,0);
 }
