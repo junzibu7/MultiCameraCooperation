@@ -89,6 +89,8 @@ public:
     bool haveWrite = false;
     std::vector<cv::Point2f> marker_pixels;
     std::vector<cv::Point2f> marker_pixels_sorted;
+    std::vector<cv::Point2f> marker_pixels_up;
+    std::vector<cv::Point2f> marker_pixels_down;
     //dilate
     cv::Mat erodeElement = getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
     cv::Mat dilateElement = getStructuringElement(cv::MORPH_RECT,cv::Size(3, 3));
@@ -203,6 +205,12 @@ public:
      */
     bool ir_img_process(cv::Mat &_ir_img, vector<cv::Point2f> &pointsVector, int model);
 
+    /**
+     * @brief match IRlandmarks with the shape of T.
+     * @param pointsVector
+     */
+    bool T_shape_identify(vector<cv::Point2f> &pointsVector);
+
     geometry_msgs::Quaternion euler2quaternion(float roll, float pitch, float yaw);
     Eigen::Quaterniond euler2quaternion_eigen(float roll, float pitch, float yaw);
     Eigen::Vector3d  quaternion2euler(float x, float y, float z, float w);
@@ -214,6 +222,7 @@ public:
     bool refine_pixel(std::vector<cv::Point2f> &pts_raw, std::vector<cv::Point2f> &pts_refine, cv::Mat &img);
     std::string Convert(float Num);
     void getEulerAngles(cv::Vec3d &rvec, Eigen::Vector3d &eulerAngles, Eigen::Quaterniond &q);
+    float get_lines_arctan(float line_1_k, float line_2_k, int aaa);
     
 };
 

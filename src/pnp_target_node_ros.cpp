@@ -163,7 +163,7 @@ void PnPTargetNodeROS::ir_compressed_img_cb(const sensor_msgs::CompressedImage::
         printf(RED"Not receive valid ir_img\n");
         return;
     }
-    landmark_pose_solve();
+    // landmark_pose_solve();
 }
 
 void PnPTargetNodeROS::ir_raw_img_cb(const sensor_msgs::Image::ConstPtr &msg){
@@ -507,40 +507,60 @@ bool PnPTargetNodeROS::extractFeatures(cv::Mat &frame, vector<cv::Point2f> &poin
     cv::goodFeaturesToTrack(frame, pointsVector, landmark_num, 0.01, 10);
 
 #ifdef USE_4_Point
-    sort(pointsVector.begin(), pointsVector.end(), [=](cv::Point pt1, cv::Point pt2){return  pt1.x < pt2.x;});
-    std::vector<cv::Point2f> marker_pixels_left(pointsVector.begin(), pointsVector.begin() + 2);
-    std::vector<cv::Point2f> marker_pixels_right(pointsVector.begin() + 3, pointsVector.begin() + 5);
-    sort(marker_pixels_left.begin(), marker_pixels_left.end(), [=](cv::Point pt1, cv::Point pt2){return  pt1.y < pt2.y;});
-    sort(marker_pixels_right.begin(), marker_pixels_right.end(), [=](cv::Point pt1, cv::Point pt2){return  pt1.y < pt2.y;});
-    marker_pixels_sorted.clear();
-    //使用上面的点
-    marker_pixels_sorted.emplace_back(marker_pixels_left[0]);
-    marker_pixels_sorted.emplace_back(marker_pixels_right[0]);
-    //使用下面的点
-    marker_pixels_sorted.emplace_back(marker_pixels_left[1]);
-    marker_pixels_sorted.emplace_back(marker_pixels_right[1]);
-    //填入中间的IR灯的点
-    marker_pixels_sorted.emplace_back(pointsVector[2]);
-
-    //  for (int i = 0;  i < marker_pixels_sorted.size(); i++){
-    //    std::cout << "[roi process] pixel xy: " << marker_pixels_sorted[i].x << ", " << marker_pixels_sorted[i].y << std::endl;
-    //  }
-    pointsVector.clear();
-    pointsVector = marker_pixels_sorted;
-
-    //use the distance between landmarks to check
-    double x_10 = pointsVector[1].x - pointsVector[0].x;
-    double x_32 = pointsVector[3].x - pointsVector[2].x;
-    double y_10 = pointsVector[1].y - pointsVector[0].y;
-    double y_32 = pointsVector[3].y - pointsVector[2].y;
-    if(abs(x_10 - x_32) > 10 || abs(y_10 - y_32) > 10){
-        ROS_ERROR(BOLDRED "[Geometry Check False] x_10: %f, x_32: %f, y_10: %f, y_32: %f" RESET, x_10, x_32, y_10, y_32);
-        return false;
+    if(pointsVector.size() == landmark_num){
+        return T_shape_identify(pointsVector);
     }else{
-        return true;
+        return false;
     }
 #endif
 
+}
+
+bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
+    marker_pixels_sorted.clear();
+    marker_pixels_up.clear();
+    marker_pixels_down.clear();
+    float slope1[3] = {0};
+
+    for(int i = 0; i < 4; i++){
+        slope1[(i + 1) % 4] = (pointsVector[(i + 1) % 4].y - pointsVector[i].y) / (pointsVector[(i + 1) % 4].x - pointsVector[i].x);
+        slope1[(i + 2) % 4] = (pointsVector[(i + 2) % 4].y - pointsVector[i].y) / (pointsVector[(i + 2) % 4].x - pointsVector[i].x);
+        slope1[(i + 3) % 4] = (pointsVector[(i + 3) % 4].y - pointsVector[i].y) / (pointsVector[(i + 3) % 4].x - pointsVector[i].x);
+        if(abs(get_lines_arctan(slope1[0], slope1[1], 1)) < 10){
+            marker_pixels_up.emplace_back(pointsVector[i]);
+        }else if(abs(get_lines_arctan(slope1[0], slope1[2], 1)) < 10){
+            marker_pixels_up.emplace_back(pointsVector[i]);
+        }else if(abs(get_lines_arctan(slope1[1], slope1[2], 1)) < 10){
+            marker_pixels_up.emplace_back(pointsVector[i]);
+        }else{
+            marker_pixels_down.emplace_back(pointsVector[i]);
+        }
+    }
+
+    float slope2[2] = {0};
+
+    for(int i = 0; i < 3; i++){
+        slope2[(i + 1) % 3] = (marker_pixels_up[(i + 1) % 3].y - marker_pixels_up[i].y) / (marker_pixels_up[(i + 1) % 3].x - marker_pixels_up[i].x);
+        slope2[(i + 2) % 3] = (marker_pixels_up[(i + 2) % 3].y - marker_pixels_up[i].y) / (marker_pixels_up[(i + 2) % 3].x - marker_pixels_up[i].x);
+        if(abs(abs(get_lines_arctan(slope2[0], slope2[1], 1)) - 180) < 15){
+            marker_pixels_sorted.emplace_back(marker_pixels_up[i]);
+            float slope =  (marker_pixels_down[0].y - marker_pixels_up[i].y) / (marker_pixels_down[0].x - marker_pixels_up[i].x);
+            if(get_lines_arctan(slope2[(i + 1) % 3], slope, 1) > 15){
+                marker_pixels_sorted.emplace_back(marker_pixels_up[(i + 1) % 3]);
+                marker_pixels_sorted.emplace_back(marker_pixels_up[(i + 2) % 3]);
+                marker_pixels_sorted.emplace_back(marker_pixels_down[0]);
+            }else{
+                marker_pixels_sorted.emplace_back(marker_pixels_up[(i + 2) % 3]);
+                marker_pixels_sorted.emplace_back(marker_pixels_up[(i + 1) % 3]);
+                marker_pixels_sorted.emplace_back(marker_pixels_down[0]);
+            }
+        }
+    }
+
+    pointsVector.clear();
+    pointsVector = marker_pixels_sorted;    
+
+    return true;
 }
 
 /**
@@ -885,4 +905,25 @@ void PnPTargetNodeROS::getEulerAngles(cv::Vec3d &rvec, Eigen::Vector3d &eulerAng
     q = Eigen::Quaterniond(rotation_vector);
 //    std::cout << "q = " << q.coeffs().transpose() << std::endl;
     eulerAngles = R.eulerAngles(2,1,0);
+}
+
+float PnPTargetNodeROS::get_lines_arctan(float line_1_k, float line_2_k, int aaa)
+{
+    if (aaa == 0)
+    {
+        float tan_k = 0; //直线夹角正切值
+        float lines_arctan;//直线斜率的反正切值
+        tan_k = (line_2_k - line_1_k) / (1 + line_2_k*line_1_k); //求直线夹角的公式
+        lines_arctan = atan(tan_k);
+        return lines_arctan;
+    }
+    else
+    {
+        float tan_k = 0; //直线夹角正切值
+        float lines_arctan;//直线斜率的反正切值
+        tan_k = (line_2_k - line_1_k) / (1 + line_2_k*line_1_k); //求直线夹角的公式
+        lines_arctan = atan(tan_k)* 180.0 / 3.1415926;
+
+        return lines_arctan;
+    }
 }
