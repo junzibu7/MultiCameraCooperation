@@ -5,6 +5,10 @@
 
 using namespace std;
 
+PnPTargetNodeROS::PnPTargetNodeROS(){
+    
+}
+
 void PnPTargetNodeROS::init(ros::NodeHandle &nh){
 
 //============== Read ros parameter =====================//
@@ -110,6 +114,13 @@ void PnPTargetNodeROS::drone_vio_pose_cb(const geometry_msgs::PoseStamped::Const
 void PnPTargetNodeROS::drone_vicon_pose_cb(const geometry_msgs::PoseStamped::ConstPtr &msg){
     drone_pose_vicon.pos << msg->pose.position.x, msg->pose.position.y, msg->pose.position.z;
     drone_pose_vicon.Quat = Eigen::Quaterniond(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z);
+    drone_pose_vicon.Quat = Eigen::Quaterniond(drone_pose_vicon.Quat.toRotationMatrix() * uav_config->Vicon_correction);
+}
+
+void PnPTargetNodeROS::body_vicon_pose_cb(const geometry_msgs::PoseStamped::ConstPtr &msg){
+    body_pose_vicon.pos << msg->pose.position.x, msg->pose.position.y, msg->pose.position.z;
+    body_pose_vicon.Quat = Eigen::Quaterniond(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z);
+    body_pose_vicon.Quat = Eigen::Quaterniond(body_pose_vicon.Quat.toRotationMatrix() * uav_config->Vicon_correction);
 }
 
 void PnPTargetNodeROS::drone_imu_cb(const sensor_msgs::Imu::ConstPtr &msg){

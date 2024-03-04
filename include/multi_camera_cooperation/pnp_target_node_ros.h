@@ -181,7 +181,8 @@ public:
     
     void drone_vicon_pose_cb(const geometry_msgs::PoseStamped::ConstPtr &msg);
     void drone_vio_pose_cb(const geometry_msgs::PoseStamped::ConstPtr &msg);
-
+    void body_vicon_pose_cb(const geometry_msgs::PoseStamped::ConstPtr &msg);
+    void body_vio_pose_cb(const geometry_msgs::PoseStamped::ConstPtr &msg);
     /**
      * IMU callback from Xsens or Pixhawk
      * @param msg
