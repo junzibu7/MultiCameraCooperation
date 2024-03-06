@@ -4,15 +4,18 @@ project(multi_camera_cooperation)
 add_compile_options(-std=c++14 -O3 -g)
 
 set(CMAKE_BUILD_TYPE "Release")
-set(cv_bridge_DIR ~/catkin_make/src/cv_bridge/cmake)
-set(uav_config_DIR /home/nvidia/mulcam_ws/src/uav_config/build)
+
+# set(cv_bridge_DIR ~/catkin_make/src/cv_bridge/cmake) #nvidia
+# set(uav_config_DIR /home/nvidia/mulcam_ws/src/uav_config/build)  #nvidia
+set(cv_bridge_DIR /home/hezijia/tool_ws/src/vision_opencv/cv_bridge/cmake)  #laptop
+set(uav_config_DIR /home/hezijia/catkin_ws/src/uav_config/build) #laptop
 
 find_package(OpenCV 4)
 
 message(OpenCV_VERSION '${OpenCV_VERSION}')
 message(OpenCV_LIBS '${OpenCV_LIBS}')
 
-SET(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda")
+# SET(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda")  #nvidia
 
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
