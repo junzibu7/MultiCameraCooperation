@@ -163,7 +163,7 @@ void PnPTargetNodeROS::ir_compressed_img_cb(const sensor_msgs::CompressedImage::
         printf(RED"Not receive valid ir_img\n");
         return;
     }
-    // landmark_pose_solve();
+    landmark_pose_solve();
 }
 
 void PnPTargetNodeROS::ir_raw_img_cb(const sensor_msgs::Image::ConstPtr &msg){
@@ -236,8 +236,10 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     T_camera_to_markers.block<3, 1>(0, 3) = target_pos_in_img;
 
 
-    //得到drone在body坐标系的位置
-    T_body_to_drone = T_body_to_camera * T_camera_to_markers * T_markers_to_drone;
+    //先从图像坐标系到相机坐标系，然后从相机坐标系到飞机坐标系
+    T_body_to_drone = T_body_to_camera * T_camera_to_markers;
+    T_body_to_drone.block<3,1>(0,3) = T_body_to_drone.block<3,1>(0,3) + T_markers_to_drone.block<3,1>(0,3); //marker在drone1坐标系下的位置
+    printf("T_body_to_drone.t = %.3f, %.3f, %.3f\n", T_body_to_drone(0,3), T_body_to_drone(1,3), T_body_to_drone(2,3));
     R_body_to_drone = T_body_to_drone.block<3, 3>(0, 0);
 #ifdef USE_IMU_DIFF
     q_body_to_drone = yaw_init_offset * q_body_to_drone;//将初始用视觉marker pixel得到的yaw角度加进去
@@ -245,28 +247,31 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     q_body_to_drone = Eigen::Quaterniond(R_body_to_drone);
 #endif
     t_body_to_drone = T_body_to_drone.block<3, 1>(0, 3);
-    printf(YELLOW "[PnP] target_pos_in_img = %.3f, %.3f, %.3f\n" RESET,
-        target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
+    // printf(YELLOW "[PnP] target_pos_in_img = %.3f, %.3f, %.3f\n" RESET,
+    //     target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
+    printf(GREEN "[PNP] t_body_to_drone = %.3f, %.3f, %.3f | q_body_to_drone (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
+         t_body_to_drone[0], t_body_to_drone[1], t_body_to_drone[2],
+         q_body_to_drone.w(), q_body_to_drone.x(), q_body_to_drone.y(), q_body_to_drone.z());
 
-//======================================= Ground Truth ============================================================//
-    Eigen::Vector3d t_body_to_drone_gt = body_pose_vicon.Quat.inverse() * (drone_pose_vicon.pos - body_pose_vicon.pos);//转换到body坐标系
-//  Eigen::Vector3d t_body_to_drone_gt = drone_neighbour_pose_vicon.pos - drone_pose_vicon.pos;//Vicon坐标系
-    Eigen::Quaterniond q_body_to_drone_gt = body_pose_vicon.Quat.inverse() * drone_pose_vicon.Quat;
-//  Eigen::Vector3d euler_gt = quaternion2euler(q_body_to_drone_gt.x(), q_body_to_drone_gt.y(), q_body_to_drone_gt.z(), q_body_to_drone_gt.w());
-  printf(GREEN "[GT] t_body_to_drone = %.3f, %.3f, %.3f | q_body_to_drone (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
-         t_body_to_drone_gt[0], t_body_to_drone_gt[1], t_body_to_drone_gt[2],
-         q_body_to_drone_gt.w(), q_body_to_drone_gt.x(), q_body_to_drone_gt.y(), q_body_to_drone_gt.z());
-  geometry_msgs::PoseStamped msg_relative_pose;
-  msg_relative_pose.header.stamp = stamp;
-  msg_relative_pose.pose.position.x = t_body_to_drone_gt[0];
-  msg_relative_pose.pose.position.y = t_body_to_drone_gt[1];
-  msg_relative_pose.pose.position.z = t_body_to_drone_gt[2];
-  msg_relative_pose.pose.orientation.w = q_body_to_drone_gt.w();
-  msg_relative_pose.pose.orientation.x = q_body_to_drone_gt.x();
-  msg_relative_pose.pose.orientation.y = q_body_to_drone_gt.y();
-  msg_relative_pose.pose.orientation.z = q_body_to_drone_gt.z();
-  pub_relative_pose_mocap.publish(msg_relative_pose);
-//======================================= Ground Truth ============================================================//
+// //======================================= Ground Truth ============================================================//
+//     Eigen::Vector3d t_body_to_drone_gt = body_pose_vicon.Quat.inverse() * (drone_pose_vicon.pos - body_pose_vicon.pos);//转换到body坐标系
+// //  Eigen::Vector3d t_body_to_drone_gt = drone_neighbour_pose_vicon.pos - drone_pose_vicon.pos;//Vicon坐标系
+//     Eigen::Quaterniond q_body_to_drone_gt = body_pose_vicon.Quat.inverse() * drone_pose_vicon.Quat;
+// //  Eigen::Vector3d euler_gt = quaternion2euler(q_body_to_drone_gt.x(), q_body_to_drone_gt.y(), q_body_to_drone_gt.z(), q_body_to_drone_gt.w());
+//   printf(GREEN "[GT] t_body_to_drone = %.3f, %.3f, %.3f | q_body_to_drone (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
+//          t_body_to_drone_gt[0], t_body_to_drone_gt[1], t_body_to_drone_gt[2],
+//          q_body_to_drone_gt.w(), q_body_to_drone_gt.x(), q_body_to_drone_gt.y(), q_body_to_drone_gt.z());
+//   geometry_msgs::PoseStamped msg_relative_pose;
+//   msg_relative_pose.header.stamp = stamp;
+//   msg_relative_pose.pose.position.x = t_body_to_drone_gt[0];
+//   msg_relative_pose.pose.position.y = t_body_to_drone_gt[1];
+//   msg_relative_pose.pose.position.z = t_body_to_drone_gt[2];
+//   msg_relative_pose.pose.orientation.w = q_body_to_drone_gt.w();
+//   msg_relative_pose.pose.orientation.x = q_body_to_drone_gt.x();
+//   msg_relative_pose.pose.orientation.y = q_body_to_drone_gt.y();
+//   msg_relative_pose.pose.orientation.z = q_body_to_drone_gt.z();
+//   pub_relative_pose_mocap.publish(msg_relative_pose);
+// //======================================= Ground Truth ============================================================//
 
 
 #ifdef ENABLE_VISUALIZATION
@@ -508,12 +513,17 @@ bool PnPTargetNodeROS::extractFeatures(cv::Mat &frame, vector<cv::Point2f> &poin
 
 #ifdef USE_4_Point
     if(pointsVector.size() == landmark_num){
-        return T_shape_identify(pointsVector);
+        T_shape_identify(pointsVector);
+        cout<<pointsVector.size()<<endl;
     }else{
         return false;
     }
 #endif
 
+    for (int i = 0; i < pointsVector.size(); i++) { 
+        cv::circle(ir_img_color_show, cv::Point2i(pointsVector[i].x, pointsVector[i].y), 2,  cv::Scalar(0,0,255), 1, cv::LINE_AA);
+    }
+    return true;
 }
 
 bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
@@ -667,18 +677,6 @@ bool PnPTargetNodeROS::optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsV
     //光流之后也需要做检查，保证没有追踪错误，否则直接return false. 按行坐标[3]>[2]>[1]>[0],第二行[4]<[1]。按列坐标[4]>[0],[5]>[2]
   //use the distance between landmarks to check
 
-#ifdef USE_4_Point
-  //use the distance between landmarks to check
-  double x_10 = pointsVector[1].x - pointsVector[0].x;
-  double x_32 = pointsVector[3].x - pointsVector[2].x;
-  double y_10 = pointsVector[1].y - pointsVector[0].y;
-  double y_32 = pointsVector[3].y - pointsVector[2].y;
-  if(abs(x_10 - x_32) > 10 || abs(y_10 - y_32) > 10){
-    ROS_ERROR(BOLDRED "[Geometry Check False] x_10: %f, x_32: %f, y_10: %f, y_32: %f" RESET, x_10, x_32, y_10, y_32);
-    return false;
-  }
-#endif
-
     if (prevImgPts.size() == nextImgPts.size()) {
         //TODO:加入pixel_refine函数，让点准确提取出来并且受噪声影响较小。
         pointsVector.clear();
@@ -727,18 +725,6 @@ bool PnPTargetNodeROS::optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsV
 
 bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
     printf("pnp_process function, opticalGoodFlag = %d, roiGoodFlag = %d\n",opticalGoodFlag, roiGoodFlag);
-
-#ifdef USE_4_Point
-  //use the distance between landmarks to check
-  double x_10 = pointsVector[1].x - pointsVector[0].x;
-  double x_32 = pointsVector[3].x - pointsVector[2].x;
-  double y_10 = pointsVector[1].y - pointsVector[0].y;
-  double y_32 = pointsVector[3].y - pointsVector[2].y;
-  if(abs(x_10 - x_32) > 10 || abs(y_10 - y_32) > 10){
-    ROS_ERROR(BOLDRED "[Geometry Check False] x_10: %f, x_32: %f, y_10: %f, y_32: %f" RESET, x_10, x_32, y_10, y_32);
-    return false;
-  }
-#endif
 
     //solvePnP
     solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_EPNP);
