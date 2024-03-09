@@ -75,6 +75,7 @@ public:
     ros::Publisher pub_marker_pixel;
     ros::Publisher pub_target_pose_in_body;
     ros::Publisher pub_relative_pose_mocap;
+    ros::Publisher pub_T_body_to_drone;
     std::string marker_pixel_topic;
     ros::Time stamp;
     cv_bridge::CvImagePtr cv_ptr_compressed_ir;

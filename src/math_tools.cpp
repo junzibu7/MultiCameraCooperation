@@ -66,6 +66,18 @@ double vectorAngle(Eigen::Vector2d& vec1, Eigen::Vector2d& vec2, int method) {
       
 }
 
+bool checkRotationDirection(Eigen::Vector2d& init, Eigen::Vector2d& final) {  
+    int crossProduct = init(0) * final(1) - init(1) * final(0);  
+      
+    if (crossProduct > 0) {  
+        return true; //CLOCKWISE;  
+    } else if (crossProduct < 0) {  
+        return false; //COUNTER_CLOCKWISE;  
+    } else {  
+        return false; //COLLINEAR;  
+    }  
+}
+
 Eigen::Vector2d subtractPoints(cv::Point2f& point1, cv::Point2f& point2) {   
     Eigen::Vector2d temp = Eigen::Vector2d(point2.x - point1.x, point2.y - point1.y);
     return temp;

@@ -67,7 +67,8 @@ void PnPTargetNodeROS::init(ros::NodeHandle &nh){
     pub_target_pose_in_body = nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/topic_target_pose_in_body", 1);
     // pub_target_pose_in_enu = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_in_enu", 1);
     // pub_target_pose_in_enu_vicon = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_in_enu_vicon", 1);
-    pub_relative_pose_mocap =  nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/relative_pose_cam2target_mocap", 1);
+    // pub_relative_pose_mocap =  nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/relative_pose_cam2target_mocap", 1);
+    pub_T_body_to_drone =  nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/T_body_to_drone", 1);
 
 
     // pub_drone_model = nh.advertise<visualization_msgs::MarkerArray>("/drone_model", 1);
@@ -251,6 +252,16 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     printf(GREEN "[PNP] t_body_to_drone = %.3f, %.3f, %.3f | q_body_to_drone (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
          t_body_to_drone[0], t_body_to_drone[1], t_body_to_drone[2],
          q_body_to_drone.w(), q_body_to_drone.x(), q_body_to_drone.y(), q_body_to_drone.z());
+    geometry_msgs::PoseStamped msg_T_body_to_drone;
+    msg_T_body_to_drone.header.stamp = stamp;
+    msg_T_body_to_drone.pose.position.x = t_body_to_drone[0];
+    msg_T_body_to_drone.pose.position.y = t_body_to_drone[1];
+    msg_T_body_to_drone.pose.position.z = t_body_to_drone[2];
+    msg_T_body_to_drone.pose.orientation.w = q_body_to_drone.w();
+    msg_T_body_to_drone.pose.orientation.x = q_body_to_drone.x();
+    msg_T_body_to_drone.pose.orientation.y = q_body_to_drone.y();
+    msg_T_body_to_drone.pose.orientation.z = q_body_to_drone.z();
+    pub_T_body_to_drone.publish(msg_T_body_to_drone);
 
 // //======================================= Ground Truth ============================================================//
 //     Eigen::Vector3d t_body_to_drone_gt = body_pose_vicon.Quat.inverse() * (drone_pose_vicon.pos - body_pose_vicon.pos);//转换到body坐标系
@@ -463,12 +474,12 @@ bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
     cout<< "marker_pixels_down.size():"<<marker_pixels_down.size()<<endl;
 
     for(int i = 0; i < 3; i++){
-        Eigen::Vector2d linkvector0 = subtractPoints(marker_pixels_up[(i + 1) % 3], marker_pixels_up[i]);
-        Eigen::Vector2d linkvector1 = subtractPoints(marker_pixels_up[(i + 2) % 3], marker_pixels_up[i]);
+        Eigen::Vector2d linkvector0 = subtractPoints(marker_pixels_up[i], marker_pixels_up[(i + 1) % 3]);
+        Eigen::Vector2d linkvector1 = subtractPoints(marker_pixels_up[i], marker_pixels_up[(i + 2) % 3]);
         if(abs(vectorAngle(linkvector0, linkvector1, 1) - 180) < 15){
             marker_pixels_sorted.emplace_back(marker_pixels_up[i]);
-            Eigen::Vector2d linkvector =  subtractPoints(marker_pixels_down[0], marker_pixels_up[i]);
-            if(abs(vectorAngle(linkvector0, linkvector, 1) - 180) > 15){
+            Eigen::Vector2d linkvector =  subtractPoints(marker_pixels_up[i], marker_pixels_down[0]);
+            if(checkRotationDirection(linkvector, linkvector0)){
                 marker_pixels_sorted.emplace_back(marker_pixels_up[(i + 1) % 3]);
                 marker_pixels_sorted.emplace_back(marker_pixels_up[(i + 2) % 3]);
                 marker_pixels_sorted.emplace_back(marker_pixels_down[0]);

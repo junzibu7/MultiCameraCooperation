@@ -36,6 +36,7 @@ float get_lines_arctan(float line_1_k, float line_2_k, int aaa);
 double vectorNorm2D(Eigen::Vector2d& vec) ;
 double vectorDotProduct(Eigen::Vector2d& vec1, Eigen::Vector2d& vec2);
 double vectorAngle(Eigen::Vector2d& vec1, Eigen::Vector2d& vec2, int method);
+bool checkRotationDirection(Eigen::Vector2d& init, Eigen::Vector2d& final);
 Eigen::Vector2d subtractPoints(cv::Point2f& point1, cv::Point2f& point2);
 
 #endif
