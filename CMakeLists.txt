@@ -5,17 +5,17 @@ add_compile_options(-std=c++14 -O3 -g)
 
 set(CMAKE_BUILD_TYPE "Release")
 
-# set(cv_bridge_DIR ~/catkin_make/src/cv_bridge/cmake) #nvidia
-# set(uav_config_DIR /home/nvidia/mulcam_ws/src/uav_config/build)  #nvidia
-set(cv_bridge_DIR /home/hezijia/tool_ws/src/vision_opencv/cv_bridge/cmake)  #laptop
-set(uav_config_DIR /home/hezijia/catkin_ws/src/uav_config/build) #laptop
+set(cv_bridge_DIR ~/catkin_make/src/cv_bridge/cmake) #nvidia
+set(uav_config_DIR /home/nvidia/mulcam_ws/src/uav_config/build)  #nvidia
+# set(cv_bridge_DIR /home/hezijia/tool_ws/src/vision_opencv/cv_bridge/cmake)  #laptop
+# set(uav_config_DIR /home/hezijia/catkin_ws/src/uav_config/build) #laptop
 
 find_package(OpenCV 4)
 
 message(OpenCV_VERSION '${OpenCV_VERSION}')
 message(OpenCV_LIBS '${OpenCV_LIBS}')
 
-# SET(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda")  #nvidia
+SET(CUDA_TOOLKIT_ROOT_DIR "/usr/local/cuda")  #nvidia
 
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
@@ -72,7 +72,8 @@ MESSAGE('My OpenCV_INCLUDE_DIRS:'${OpenCV_INCLUDE_DIRS})
 
 # ==================== PnP core library ==================== #
 add_library(pnp_ros_lib src/pnp_target_node_ros.cpp)
-target_link_libraries(pnp_ros_lib ${OpenCV_LIBS} yaml-cpp)
+add_library(math_tools_lib src/math_tools.cpp)
+target_link_libraries(pnp_ros_lib ${OpenCV_LIBS} math_tools_lib yaml-cpp)
 # ==================== PnP core library ==================== #
 
 # ==================== Executable Program ==================== #

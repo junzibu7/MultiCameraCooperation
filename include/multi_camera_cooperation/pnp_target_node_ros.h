@@ -50,6 +50,7 @@
 #define IMG_COMPRESSED
 #define SHOW_ORIGIN_IMG
 #define USE_4_Point
+#define ENABLE_VISUALIZATION
 
 using namespace std;
 
@@ -216,13 +217,12 @@ public:
     Eigen::Vector3d  quaternion2euler(float x, float y, float z, float w);
     bool optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsVector);
     bool extractFeatures(cv::Mat &frame, vector<cv::Point2f> &pointsVector);
+    bool binary_threshold(cv::Mat &frame, vector<cv::Point2f> &pointsVector);
     void broadcast_marker_pixel(vector<cv::Point2f> &pointsVector);
     float yaw_esti_pixel_angle_process(vector<cv::Point2f> &pointsVector, vector<cv::Point2f> &pointsVectorNeighbour, ConfigParser &uav, ConfigParser &uav_neighbour);
     bool pnp_process(std::vector<cv::Point2f> &pointsVector);
     bool refine_pixel(std::vector<cv::Point2f> &pts_raw, std::vector<cv::Point2f> &pts_refine, cv::Mat &img);
     std::string Convert(float Num);
-    void getEulerAngles(cv::Vec3d &rvec, Eigen::Vector3d &eulerAngles, Eigen::Quaterniond &q);
-    float get_lines_arctan(float line_1_k, float line_2_k, int aaa);
     
 };
 
