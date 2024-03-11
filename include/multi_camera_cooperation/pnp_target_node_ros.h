@@ -90,6 +90,7 @@ public:
     std::string write_image_path; //写入图像到本地用于分析
     bool haveWrite = false;
     std::vector<cv::Point2f> marker_pixels;
+    std::vector<cv::Point2f> marker_pixels_buffer;
     std::vector<cv::Point2f> marker_pixels_sorted;
     std::vector<cv::Point2f> marker_pixels_up;
     std::vector<cv::Point2f> marker_pixels_down;

@@ -83,6 +83,8 @@ void PnPTargetNodeROS::init(ros::NodeHandle &nh){
     cv_ptr_compressed_ir = boost::make_shared<cv_bridge::CvImage>();
     cv_ptr_raw_ir = boost::make_shared<cv_bridge::CvImage const>();
 
+    marker_pixels_buffer.clear();
+
     // //是否从launch中加载yaw角初值
     // if(yaw_relative_init !=0.0){
     //   printf(BOLDWHITE "USE pre-defined yaw offset: %f\n", yaw_relative_init);
@@ -252,17 +254,18 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     printf(GREEN "[PNP] t_body_to_drone = %.3f, %.3f, %.3f | q_body_to_drone (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
          t_body_to_drone[0], t_body_to_drone[1], t_body_to_drone[2],
          q_body_to_drone.w(), q_body_to_drone.x(), q_body_to_drone.y(), q_body_to_drone.z());
-    geometry_msgs::PoseStamped msg_T_body_to_drone;
-    msg_T_body_to_drone.header.stamp = stamp;
-    msg_T_body_to_drone.pose.position.x = t_body_to_drone[0];
-    msg_T_body_to_drone.pose.position.y = t_body_to_drone[1];
-    msg_T_body_to_drone.pose.position.z = t_body_to_drone[2];
-    msg_T_body_to_drone.pose.orientation.w = q_body_to_drone.w();
-    msg_T_body_to_drone.pose.orientation.x = q_body_to_drone.x();
-    msg_T_body_to_drone.pose.orientation.y = q_body_to_drone.y();
-    msg_T_body_to_drone.pose.orientation.z = q_body_to_drone.z();
-    pub_T_body_to_drone.publish(msg_T_body_to_drone);
-
+    if(pnpGoodFlag && (opticalGoodFlag || roiGoodFlag)){
+        geometry_msgs::PoseStamped msg_T_body_to_drone;
+        msg_T_body_to_drone.header.stamp = stamp;
+        msg_T_body_to_drone.pose.position.x = t_body_to_drone[0];
+        msg_T_body_to_drone.pose.position.y = t_body_to_drone[1];
+        msg_T_body_to_drone.pose.position.z = t_body_to_drone[2];
+        msg_T_body_to_drone.pose.orientation.w = q_body_to_drone.w();
+        msg_T_body_to_drone.pose.orientation.x = q_body_to_drone.x();
+        msg_T_body_to_drone.pose.orientation.y = q_body_to_drone.y();
+        msg_T_body_to_drone.pose.orientation.z = q_body_to_drone.z();
+        pub_T_body_to_drone.publish(msg_T_body_to_drone);
+    }
 // //======================================= Ground Truth ============================================================//
 //     Eigen::Vector3d t_body_to_drone_gt = body_pose_vicon.Quat.inverse() * (drone_pose_vicon.pos - body_pose_vicon.pos);//转换到body坐标系
 // //  Eigen::Vector3d t_body_to_drone_gt = drone_neighbour_pose_vicon.pos - drone_pose_vicon.pos;//Vicon坐标系
@@ -435,11 +438,16 @@ bool PnPTargetNodeROS::binary_threshold(cv::Mat &frame, vector<cv::Point2f> &poi
 #ifdef USE_4_Point
     if(pointsVector.size() == landmark_num){
         if(T_shape_identify(pointsVector)){
+            for (int i = 0; i < pointsVector.size(); i++) {
+                std::cout << "pointsVector xy = " << pointsVector[i].x << ", " << pointsVector[i].y << std::endl;
+            }
             return true;
         }else{
             return false;
         }
     }else{
+        pointsVector.clear();
+        pointsVector = marker_pixels_buffer;
         return false;
     }
 #endif
@@ -473,7 +481,7 @@ bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
     cout<< "marker_pixels_up.size():"<<marker_pixels_up.size()<<endl;
     cout<< "marker_pixels_down.size():"<<marker_pixels_down.size()<<endl;
 
-    for(int i = 0; i < 3; i++){
+    for(int i = 0; i < 3; i++){//need upgrade!!!
         Eigen::Vector2d linkvector0 = subtractPoints(marker_pixels_up[i], marker_pixels_up[(i + 1) % 3]);
         Eigen::Vector2d linkvector1 = subtractPoints(marker_pixels_up[i], marker_pixels_up[(i + 2) % 3]);
         if(abs(vectorAngle(linkvector0, linkvector1, 1) - 180) < 15){
@@ -496,8 +504,12 @@ bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
 
     if((pointsVector.size() != 4)){
         cout<< "marker_pixels_sort.size():"<<marker_pixels_sorted.size()<<endl;
+        pointsVector = marker_pixels_buffer;
         return false;
     }  
+
+    marker_pixels_buffer.clear();
+    marker_pixels_buffer =  pointsVector;
 
     return true;
 }
@@ -656,9 +668,9 @@ bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
     printf("pnp_process function, opticalGoodFlag = %d, roiGoodFlag = %d\n",opticalGoodFlag, roiGoodFlag);
 
     //solvePnP
-    solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_EPNP);
+    solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_IPPE);
     Eigen::Vector3d eulerAngles;
-    getEulerAngles(outputRvecRaw,eulerAngles, target_q_in_img);
+    getEulerAngles(outputRvecRaw, eulerAngles, target_q_in_img);
     target_pos_in_img << outputTvecRaw.val[0], outputTvecRaw.val[1], outputTvecRaw.val[2];
     printf(YELLOW "[PnP Solve target] x: %.3f, y: %.3f, z: %.3f\n" RESET, target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
     msg_target_pose_from_img.header.stamp = stamp;
