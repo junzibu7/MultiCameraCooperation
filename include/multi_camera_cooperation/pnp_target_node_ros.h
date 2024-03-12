@@ -230,5 +230,8 @@ public:
     
 };
 
+fstream t_body_to_drone_file;
+fstream q_body_to_drone_file;
+
 
 #endif //PNP_TARGET_NODE_ROS_H

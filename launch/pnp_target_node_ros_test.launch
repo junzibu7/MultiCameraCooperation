@@ -2,7 +2,7 @@
     <!--work in main thread, if it is loaded before image_show, came_read will block the launch of image_show-->
     <group ns="kun0">
     <node pkg="multi_camera_cooperation" type="multi_camera_cooperation_ros" name="multi_camera_cooperation_ros" output="screen" required="true">
-        <remap from="/ir_mono" to="/camC/infra1/image_rect_raw/compressed"/>
+        <remap from="/ir_mono" to="/camB/infra1/image_rect_raw/compressed"/>
         <remap from="/vio" to="/kun0/mavros/local_position/pose"/>
         <remap from="/imu" to="/kun0/imu/data"/>
         <remap from="/imu_uav" to="/kun0/imu/data"/>

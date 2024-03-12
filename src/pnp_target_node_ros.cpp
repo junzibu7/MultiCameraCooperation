@@ -249,6 +249,21 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     q_body_to_drone = Eigen::Quaterniond(R_body_to_drone);
 #endif
     t_body_to_drone = T_body_to_drone.block<3, 1>(0, 3);
+
+//=====================================写入文件进一步分析======================================//
+    
+    t_body_to_drone_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/t_body_to_drone_camB.txt",ios::out|ios::app);
+	//输入你想写入的内容 
+	t_body_to_drone_file<<t_body_to_drone[0]<<""<<t_body_to_drone[1]<<""<<t_body_to_drone[2]<<endl;
+	t_body_to_drone_file.close();
+
+    q_body_to_drone_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/q_body_to_drone_camB.txt",ios::out|ios::app);
+	//输入你想写入的内容 
+	q_body_to_drone_file<<q_body_to_drone.w()<<" "<<q_body_to_drone.x()<<" "<<q_body_to_drone.y()<<" "<<q_body_to_drone.z()<<endl;
+	q_body_to_drone_file.close();
+    
+//=====================================写入文件进一步分析======================================//
+
     // printf(YELLOW "[PnP] target_pos_in_img = %.3f, %.3f, %.3f\n" RESET,
     //     target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
     printf(GREEN "[PNP] t_body_to_drone = %.3f, %.3f, %.3f | q_body_to_drone (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
@@ -460,15 +475,17 @@ bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
     float slope1[3] = {0};
     bool TShapeGoodFlag = true;
 
+    
+
     for(int i = 0; i < 4; i++){
-        slope1[(i + 1) % 4] = (pointsVector[(i + 1) % 4].y - pointsVector[i].y) / (pointsVector[(i + 1) % 4].x - pointsVector[i].x);
-        slope1[(i + 2) % 4] = (pointsVector[(i + 2) % 4].y - pointsVector[i].y) / (pointsVector[(i + 2) % 4].x - pointsVector[i].x);
-        slope1[(i + 3) % 4] = (pointsVector[(i + 3) % 4].y - pointsVector[i].y) / (pointsVector[(i + 3) % 4].x - pointsVector[i].x);
-        if(abs(get_lines_arctan(slope1[0], slope1[1], 1)) < 10){
+        Eigen::Vector2d linkvector0 = subtractPoints(pointsVector[i], pointsVector[(i + 1) % 4]);
+        Eigen::Vector2d linkvector1 = subtractPoints(pointsVector[i], pointsVector[(i + 2) % 4]);
+        Eigen::Vector2d linkvector2 = subtractPoints(pointsVector[i], pointsVector[(i + 3) % 4]);
+        if((abs(vectorAngle(linkvector0, linkvector1, 1)) < 10) || (abs(vectorAngle(linkvector0, linkvector1, 1) - 180) < 10)){
             marker_pixels_up.emplace_back(pointsVector[i]);
-        }else if(abs(get_lines_arctan(slope1[0], slope1[2], 1)) < 10){
+        }else if((abs(vectorAngle(linkvector1, linkvector2, 1)) < 10) || (abs(vectorAngle(linkvector1, linkvector2, 1) - 180) < 10)){
             marker_pixels_up.emplace_back(pointsVector[i]);
-        }else if(abs(get_lines_arctan(slope1[1], slope1[2], 1)) < 10){
+        }else if((abs(vectorAngle(linkvector2, linkvector0, 1)) < 10) || (abs(vectorAngle(linkvector2, linkvector0, 1) - 180) < 10)){
             marker_pixels_up.emplace_back(pointsVector[i]);
         }else{
             marker_pixels_down.emplace_back(pointsVector[i]);
@@ -480,13 +497,17 @@ bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
     }
 
     cout<< "marker_pixels_up.size():"<<marker_pixels_up.size()<<endl;
+    cout<< marker_pixels_up<<endl;
     cout<< "marker_pixels_down.size():"<<marker_pixels_down.size()<<endl;
 
     for(int i = 0; i < 3; i++){//need upgrade!!!
         Eigen::Vector2d linkvector0 = subtractPoints(marker_pixels_up[i], marker_pixels_up[(i + 1) % 3]);
         Eigen::Vector2d linkvector1 = subtractPoints(marker_pixels_up[i], marker_pixels_up[(i + 2) % 3]);
-        if(abs(vectorAngle(linkvector0, linkvector1, 1) - 180) < 15){
+        
+        cout<<vectorAngle(linkvector0, linkvector1, 1) - 180<<endl;
+        if(abs(vectorAngle(linkvector0, linkvector1, 1) - 180) < 30){
             marker_pixels_sorted.emplace_back(marker_pixels_up[i]);
+            cout << marker_pixels_sorted << endl;
             Eigen::Vector2d linkvector =  subtractPoints(marker_pixels_up[i], marker_pixels_down[0]);
             if(checkRotationDirection(linkvector, linkvector0)){
                 marker_pixels_sorted.emplace_back(marker_pixels_up[(i + 1) % 3]);
