@@ -68,7 +68,7 @@ void PnPTargetNodeROS::init(ros::NodeHandle &nh){
     // pub_target_pose_in_enu = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_in_enu", 1);
     // pub_target_pose_in_enu_vicon = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_in_enu_vicon", 1);
     // pub_relative_pose_mocap =  nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/relative_pose_cam2target_mocap", 1);
-    pub_T_body_to_drone =  nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/T_body_to_drone", 1);
+    pub_T_camera_to_drone =  nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/T_camera_to_drone", 1);
 
 
     // pub_drone_model = nh.advertise<visualization_msgs::MarkerArray>("/drone_model", 1);
@@ -241,7 +241,7 @@ void PnPTargetNodeROS::landmark_pose_solve(){
 
     //先从图像坐标系到相机坐标系，然后从相机坐标系到飞机坐标系
     T_body_to_drone = T_body_to_camera * T_camera_to_markers;
-    T_body_to_drone.block<3,1>(0,3) = T_body_to_drone.block<3,1>(0,3) + T_markers_to_drone.block<3,1>(0,3); //marker在drone1坐标系下的位置
+    // T_body_to_drone.block<3,1>(0,3) = T_body_to_drone.block<3,1>(0,3) + T_markers_to_drone.block<3,1>(0,3); //marker在drone1坐标系下的位置
     R_body_to_drone = T_body_to_drone.block<3, 3>(0, 0);
 #ifdef USE_IMU_DIFF
     q_body_to_drone = yaw_init_offset * q_body_to_drone;//将初始用视觉marker pixel得到的yaw角度加进去
@@ -255,16 +255,16 @@ void PnPTargetNodeROS::landmark_pose_solve(){
          t_body_to_drone[0], t_body_to_drone[1], t_body_to_drone[2],
          q_body_to_drone.w(), q_body_to_drone.x(), q_body_to_drone.y(), q_body_to_drone.z());
     if(pnpGoodFlag && (opticalGoodFlag || roiGoodFlag)){
-        geometry_msgs::PoseStamped msg_T_body_to_drone;
-        msg_T_body_to_drone.header.stamp = stamp;
-        msg_T_body_to_drone.pose.position.x = t_body_to_drone[0];
-        msg_T_body_to_drone.pose.position.y = t_body_to_drone[1];
-        msg_T_body_to_drone.pose.position.z = t_body_to_drone[2];
-        msg_T_body_to_drone.pose.orientation.w = q_body_to_drone.w();
-        msg_T_body_to_drone.pose.orientation.x = q_body_to_drone.x();
-        msg_T_body_to_drone.pose.orientation.y = q_body_to_drone.y();
-        msg_T_body_to_drone.pose.orientation.z = q_body_to_drone.z();
-        pub_T_body_to_drone.publish(msg_T_body_to_drone);
+        geometry_msgs::PoseStamped msg_T_camera_to_drone;
+        msg_T_camera_to_drone.header.stamp = stamp;
+        msg_T_camera_to_drone.pose.position.x = t_body_to_drone[0];
+        msg_T_camera_to_drone.pose.position.y = t_body_to_drone[1];
+        msg_T_camera_to_drone.pose.position.z = t_body_to_drone[2];
+        msg_T_camera_to_drone.pose.orientation.w = q_body_to_drone.w();
+        msg_T_camera_to_drone.pose.orientation.x = q_body_to_drone.x();
+        msg_T_camera_to_drone.pose.orientation.y = q_body_to_drone.y();
+        msg_T_camera_to_drone.pose.orientation.z = q_body_to_drone.z();
+        pub_T_camera_to_drone.publish(msg_T_camera_to_drone);
     }
 // //======================================= Ground Truth ============================================================//
 //     Eigen::Vector3d t_body_to_drone_gt = body_pose_vicon.Quat.inverse() * (drone_pose_vicon.pos - body_pose_vicon.pos);//转换到body坐标系
@@ -383,14 +383,14 @@ bool PnPTargetNodeROS::binary_threshold(cv::Mat &frame, vector<cv::Point2f> &poi
             ir_binary_threshold -= 5;
             printf(YELLOW "[down] ir_binary_threshold set to %d\n", ir_binary_threshold);
             if(ir_binary_threshold <= 20){
-                ir_binary_threshold = 100;
+                ir_binary_threshold = 80;
                 return false;
             }
         }else if(ir_contours.size() > landmark_num){
             ir_binary_threshold += 5;
             printf(YELLOW "[up] ir_binary_threshold set to %d\n", ir_binary_threshold);
-            if(ir_binary_threshold >= 240){
-                ir_binary_threshold = 100;
+            if(ir_binary_threshold >= 220){
+                ir_binary_threshold = 80;
                 return false;
             }
         }else{
@@ -458,6 +458,7 @@ bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
     marker_pixels_up.clear();
     marker_pixels_down.clear();
     float slope1[3] = {0};
+    bool TShapeGoodFlag = true;
 
     for(int i = 0; i < 4; i++){
         slope1[(i + 1) % 4] = (pointsVector[(i + 1) % 4].y - pointsVector[i].y) / (pointsVector[(i + 1) % 4].x - pointsVector[i].x);
@@ -497,21 +498,30 @@ bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
                 marker_pixels_sorted.emplace_back(marker_pixels_down[0]);
             }
         }
-    } 
+    }
 
     pointsVector.clear();
-    pointsVector = marker_pixels_sorted;   
+    pointsVector = marker_pixels_sorted;  
 
-    if((pointsVector.size() != 4)){
+    if(pointsVector.size() != landmark_num)  
+        TShapeGoodFlag = false;
+
+    Eigen::Vector2d vec10 = subtractPoints(pointsVector[1], pointsVector[0]);
+    Eigen::Vector2d vec20 = subtractPoints(pointsVector[2], pointsVector[0]);
+    if(abs(vectorNorm2D(vec10) - vectorNorm2D(vec20)) > 30)
+        TShapeGoodFlag = false;
+
+    if(TShapeGoodFlag){
+        marker_pixels_buffer.clear();
+        marker_pixels_buffer =  pointsVector;
+        return true;
+    }else{
         cout<< "marker_pixels_sort.size():"<<marker_pixels_sorted.size()<<endl;
         pointsVector = marker_pixels_buffer;
         return false;
-    }  
+    }
 
-    marker_pixels_buffer.clear();
-    marker_pixels_buffer =  pointsVector;
-
-    return true;
+    
 }
 
 /**

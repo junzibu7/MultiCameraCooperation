@@ -75,7 +75,7 @@ public:
     ros::Publisher pub_marker_pixel;
     ros::Publisher pub_target_pose_in_body;
     ros::Publisher pub_relative_pose_mocap;
-    ros::Publisher pub_T_body_to_drone;
+    ros::Publisher pub_T_camera_to_drone;
     std::string marker_pixel_topic;
     ros::Time stamp;
     cv_bridge::CvImagePtr cv_ptr_compressed_ir;
@@ -213,6 +213,8 @@ public:
      * @param pointsVector
      */
     bool T_shape_identify(vector<cv::Point2f> &pointsVector);
+
+    
 
     geometry_msgs::Quaternion euler2quaternion(float roll, float pitch, float yaw);
     Eigen::Quaterniond euler2quaternion_eigen(float roll, float pitch, float yaw);
