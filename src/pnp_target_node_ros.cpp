@@ -28,7 +28,7 @@ void PnPTargetNodeROS::init(ros::NodeHandle &nh){
 //===== Read camera intrinsics and extrinsic with yaml-cpp =====//
     T_body_to_camera = uav_config->cameraA.color_camera.T_body_camColor * uav_config->cameraA.ir_camera.cam1.T_camColor_camIR1 * uav_config->T_cam_image;
     cameraMatrix = (cv::Mat_<double>(3, 3) << uav_config->cameraA.ir_camera.cam1.fx, 0, uav_config->cameraA.ir_camera.cam1.cx, 0, uav_config->cameraA.ir_camera.cam1.fy, uav_config->cameraA.ir_camera.cam1.cy, 0, 0, 1);
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < landmark_num; ++i) {
         distCoeffs.emplace_back(uav_config->cameraA.ir_camera.cam1.D[i]);
     }
 //===== Read camera intrinsics and extrinsic with yaml-cpp =====//
@@ -667,8 +667,14 @@ bool PnPTargetNodeROS::optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsV
 bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
     printf("pnp_process function, opticalGoodFlag = %d, roiGoodFlag = %d\n",opticalGoodFlag, roiGoodFlag);
 
+    cout << pointsVector << endl;
+
     //solvePnP
-    solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_IPPE);
+    // solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_IPPE);
+    solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false);
+    cout << drone_landmarks_cv << endl;
+    cout << outputRvecRaw << endl;
+    cout << outputTvecRaw << endl;
     Eigen::Vector3d eulerAngles;
     getEulerAngles(outputRvecRaw, eulerAngles, target_q_in_img);
     target_pos_in_img << outputTvecRaw.val[0], outputTvecRaw.val[1], outputTvecRaw.val[2];
