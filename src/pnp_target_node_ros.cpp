@@ -252,20 +252,18 @@ void PnPTargetNodeROS::landmark_pose_solve(){
 
 //=====================================写入文件进一步分析======================================//
     
-    t_body_to_drone_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/t_body_to_drone_camB.txt",ios::out|ios::app);
+    t_body_to_drone_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/t_body_to_drone_camC.txt",ios::out|ios::app);
 	//输入你想写入的内容 
-	t_body_to_drone_file<<t_body_to_drone[0]<<""<<t_body_to_drone[1]<<""<<t_body_to_drone[2]<<endl;
+	t_body_to_drone_file<<t_body_to_drone[0]<<" "<<t_body_to_drone[1]<<" "<<t_body_to_drone[2]<<endl;
 	t_body_to_drone_file.close();
 
-    q_body_to_drone_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/q_body_to_drone_camB.txt",ios::out|ios::app);
+    q_body_to_drone_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/q_body_to_drone_camC.txt",ios::out|ios::app);
 	//输入你想写入的内容 
 	q_body_to_drone_file<<q_body_to_drone.w()<<" "<<q_body_to_drone.x()<<" "<<q_body_to_drone.y()<<" "<<q_body_to_drone.z()<<endl;
 	q_body_to_drone_file.close();
     
 //=====================================写入文件进一步分析======================================//
 
-    // printf(YELLOW "[PnP] target_pos_in_img = %.3f, %.3f, %.3f\n" RESET,
-    //     target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
     printf(GREEN "[PNP] t_body_to_drone = %.3f, %.3f, %.3f | q_body_to_drone (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
          t_body_to_drone[0], t_body_to_drone[1], t_body_to_drone[2],
          q_body_to_drone.w(), q_body_to_drone.x(), q_body_to_drone.y(), q_body_to_drone.z());
@@ -360,6 +358,9 @@ bool PnPTargetNodeROS::ir_img_process(cv::Mat &_ir_img, vector<cv::Point2f> &poi
             return false;
         }
     }
+
+    ROS_ERROR("error process method, ir_img_process failed !!!");
+    return false;
 
 }
 
@@ -701,19 +702,13 @@ bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
     cout << pointsVector << endl;
 
     //solvePnP
-    // solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_IPPE);
+    //solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_IPPE);
     solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false);
-    cout << drone_landmarks_cv << endl;
-    cout << outputRvecRaw << endl;
-    cout << outputTvecRaw << endl;
     Eigen::Vector3d eulerAngles;
     getEulerAngles(outputRvecRaw, eulerAngles, target_q_in_img);
     target_pos_in_img << outputTvecRaw.val[0], outputTvecRaw.val[1], outputTvecRaw.val[2];
     printf(YELLOW "[PnP Solve target] x: %.3f, y: %.3f, z: %.3f\n" RESET, target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
-    msg_target_pose_from_img.header.stamp = stamp;
-    target_pos_in_img[0] = min(max(target_pos_in_img[0], -2.0), 2.0);
-    target_pos_in_img[1] = min(max(target_pos_in_img[1], -2.0), 2.0);
-    target_pos_in_img[2] = min(max(target_pos_in_img[2], 0.5), 4.0);
+    // msg_target_pose_from_img.header.stamp = stamp;
     //范围约束
     //均值滤波器
     //低通滤波器
@@ -736,12 +731,6 @@ bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
 //    target_pos_in_img[1] = min(max(y_avg, -2.0), 2.0);
 //    target_pos_in_img[2] = min(max(z_avg, 0.5), 4.0);
 //    printf(YELLOW "[PnP min max] x: %.3f, y: %.3f, z: %.3f \n" RESET, target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
-    if(abs(msg_target_pose_from_img.pose.position.x) > 2 || abs(msg_target_pose_from_img.pose.position.y) > 2 || abs(msg_target_pose_from_img.pose.position.z) > 5){
-        cv::putText(ir_img_color_show,
-                    "out_range",
-                    cv::Point(300, 140), cv::FONT_HERSHEY_TRIPLEX ,0.8,cv::Scalar(255,255,0),2,8,false);
-        return false;
-    }
     return true;
 }
 
