@@ -708,7 +708,10 @@ bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
     getEulerAngles(outputRvecRaw, eulerAngles, target_q_in_img);
     target_pos_in_img << outputTvecRaw.val[0], outputTvecRaw.val[1], outputTvecRaw.val[2];
     printf(YELLOW "[PnP Solve target] x: %.3f, y: %.3f, z: %.3f\n" RESET, target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
-    // msg_target_pose_from_img.header.stamp = stamp;
+    msg_target_pose_from_img.header.stamp = stamp;
+    target_pos_in_img[0] = min(max(target_pos_in_img[0], -20.0), 20.0);
+    target_pos_in_img[1] = min(max(target_pos_in_img[1], -10.0), 10.0);
+    target_pos_in_img[2] = min(max(target_pos_in_img[2], -10.0), 10.0);
     //范围约束
     //均值滤波器
     //低通滤波器
