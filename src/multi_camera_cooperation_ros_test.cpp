@@ -15,9 +15,10 @@ int main(int argc, char **argv)
     ros::NodeHandle nh("~");
 //    ros::NodeHandle nh;
     ros::Rate rate(30);
+    tf::TransformBroadcaster* br = new(tf::TransformBroadcaster);
 
     std::cout << "Init MultiCameraCooperation" << std::endl;
-    pnp_manager.init(nh);
+    pnp_manager.init(nh, br);
 
     ros::spin();
 }

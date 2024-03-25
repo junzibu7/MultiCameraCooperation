@@ -10,12 +10,14 @@ PnPTargetNodeROS::PnPTargetNodeROS(){
     
 }
 
-void PnPTargetNodeROS::init(ros::NodeHandle &nh){
+void PnPTargetNodeROS::init(ros::NodeHandle &nh, tf::TransformBroadcaster* br){
 
 //============== Read ros parameter =====================//
     std::string uav_config_file;
     int drone_id;
+    br0 = br;
 
+    nh.param<std::string>("cam", cam, "camA"); 
     nh.param<double>("PnP_time_delay", PnP_time_delay, 0.0);//PnP检测中，由相机捕获、程序处理、滤波等带来的时间延迟
     nh.param<int>("ir_binary_threshold", ir_binary_threshold, 50);
     nh.param<int>("drone_id", drone_id, 0);
@@ -26,16 +28,36 @@ void PnPTargetNodeROS::init(ros::NodeHandle &nh){
     uav_config = make_shared<ConfigParser>(uav_config_file);
 
 //===== Read camera intrinsics and extrinsic with yaml-cpp =====//
-    T_body_to_camera = uav_config->cameraA.color_camera.T_body_camColor * uav_config->cameraA.ir_camera.cam1.T_camColor_camIR1 * uav_config->T_cam_image;
-    cameraMatrix = (cv::Mat_<double>(3, 3) << uav_config->cameraA.ir_camera.cam1.fx, 0, uav_config->cameraA.ir_camera.cam1.cx, 0, uav_config->cameraA.ir_camera.cam1.fy, uav_config->cameraA.ir_camera.cam1.cy, 0, 0, 1);
+    T_camera_to_image = uav_config->T_cam_image;
+    if(cam == "camA"){
+        cameraMatrix = (cv::Mat_<double>(3, 3) << uav_config->cameraA.ir_camera.cam1.fx, 0, uav_config->cameraA.ir_camera.cam1.cx, 0, uav_config->cameraA.ir_camera.cam1.fy, uav_config->cameraA.ir_camera.cam1.cy, 0, 0, 1);
     for (int i = 0; i < landmark_num; ++i) {
         distCoeffs.emplace_back(uav_config->cameraA.ir_camera.cam1.D[i]);
+    }
+    }
+    if(cam == "camB"){
+        cameraMatrix = (cv::Mat_<double>(3, 3) << uav_config->cameraB.ir_camera.cam1.fx, 0, uav_config->cameraB.ir_camera.cam1.cx, 0, uav_config->cameraB.ir_camera.cam1.fy, uav_config->cameraB.ir_camera.cam1.cy, 0, 0, 1);
+    for (int i = 0; i < landmark_num; ++i) {
+        distCoeffs.emplace_back(uav_config->cameraB.ir_camera.cam1.D[i]);
+    }
+    }
+    if(cam == "camC"){
+        cameraMatrix = (cv::Mat_<double>(3, 3) << uav_config->cameraC.ir_camera.cam1.fx, 0, uav_config->cameraC.ir_camera.cam1.cx, 0, uav_config->cameraC.ir_camera.cam1.fy, uav_config->cameraC.ir_camera.cam1.cy, 0, 0, 1);
+    for (int i = 0; i < landmark_num; ++i) {
+        distCoeffs.emplace_back(uav_config->cameraC.ir_camera.cam1.D[i]);
+    }
+    }
+    if(cam == "camD"){
+        cameraMatrix = (cv::Mat_<double>(3, 3) << uav_config->cameraD.ir_camera.cam1.fx, 0, uav_config->cameraD.ir_camera.cam1.cx, 0, uav_config->cameraD.ir_camera.cam1.fy, uav_config->cameraD.ir_camera.cam1.cy, 0, 0, 1);
+    for (int i = 0; i < landmark_num; ++i) {
+        distCoeffs.emplace_back(uav_config->cameraD.ir_camera.cam1.D[i]);
+    }
     }
 //===== Read camera intrinsics and extrinsic with yaml-cpp =====//
 
 
 //======================== Read IRlandmark extrinsic ========================//
-    T_markers_to_drone = uav_config->ir_landmark.T_marker_IRLandmark.inverse();
+    T_IRLandmark_to_drone = uav_config->ir_landmark.T_drone_IRLandmark.inverse();
     landmark_num = uav_config->ir_landmark.number;
     for (int i = 0; i < landmark_num; ++i) {
         drone_landmarks_cv.emplace_back(cv::Point3f(uav_config->ir_landmark.layout(0,i)/1000.0, uav_config->ir_landmark.layout(1,i)/1000.0, uav_config->ir_landmark.layout(2,i)/1000.0));
@@ -45,16 +67,16 @@ void PnPTargetNodeROS::init(ros::NodeHandle &nh){
     
 //============================= Initialize ROS topic =============================//
 #ifdef IMG_COMPRESSED
-    sub_ir_img = nh.subscribe("/ir_mono", 1, &PnPTargetNodeROS::ir_compressed_img_cb, this);
+    sub_ir_img = nh.subscribe("/ir_mono_"+cam, 1, &PnPTargetNodeROS::ir_compressed_img_cb, this);
 #else
-    sub_ir_img = nh.subscribe("/ir_mono", 1, &PnPTargetNodeROS::ir_raw_img_cb, this);
+    sub_ir_img = nh.subscribe("/ir_mono_"+cam, 1, &PnPTargetNodeROS::ir_raw_img_cb, this);
 #endif
     sub_drone_vio_pose = nh.subscribe("/vio", 1, &PnPTargetNodeROS::drone_vio_pose_cb, this);
     sub_drone_vicon_pose = nh.subscribe("/mocap", 1, &PnPTargetNodeROS::drone_vicon_pose_cb, this);
     sub_drone_imu = nh.subscribe("/imu", 1, &PnPTargetNodeROS::drone_imu_cb, this);
     
 #ifdef SHOW_ORIGIN_IMG
-    pub_ir_img = nh.advertise<sensor_msgs::Image>("ir_mono/origin",1);
+    pub_ir_img = nh.advertise<sensor_msgs::Image>("ir_mono_"+cam+"/origin",1);
 #endif
     pub_marker_pixel = nh.advertise<multi_camera_cooperation::Markers>("/marker_pixel",10);
     // pub_relative_attitude_by_marker_pixel = nh.advertise<geometry_msgs::PoseStamped>("relative_pose_by_marker_pixel",10);
@@ -146,6 +168,27 @@ void PnPTargetNodeROS::drone_imu_cb(const sensor_msgs::Imu::ConstPtr &msg){
 //     filter->agent_self.feed_measurement_imu(message);
 }
 
+//============================= ir_img receive =============================//
+
+void PnPTargetNodeROS::ir_raw_img_cb(const sensor_msgs::Image::ConstPtr &msg){
+//  ROS_INFO("ir_img_cb");
+//  std::cout << "ir timestamp = " << msg->header.stamp << std::endl;
+    stamp = msg->header.stamp;
+    cv_bridge::CvImageConstPtr cv_ptr_raw_ir;
+    cv_ptr_raw_ir = cv_bridge::toCvShare(msg,sensor_msgs::image_encodings::MONO8);
+    ir_img = cv_ptr_raw_ir->image;
+//  cv::equalizeHist(ir_img, ir_img); //对图像均衡化
+#ifdef SHOW_ORIGIN_IMG
+    auto ir_img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", ir_img).toImageMsg();
+    pub_ir_img.publish(ir_img_msg);
+#endif
+    if(ir_img.empty()){
+        printf(RED"Not receive valid ir_img\n");
+        return;
+    }
+    landmark_pose_solve();
+}
+
 void PnPTargetNodeROS::ir_compressed_img_cb(const sensor_msgs::CompressedImage::ConstPtr &msg){
 //    ROS_INFO("ir_img_cb");
 //    std::cout << "ir timestamp = " << msg->header.stamp << std::endl;
@@ -169,29 +212,11 @@ void PnPTargetNodeROS::ir_compressed_img_cb(const sensor_msgs::CompressedImage::
     landmark_pose_solve();
 }
 
-void PnPTargetNodeROS::ir_raw_img_cb(const sensor_msgs::Image::ConstPtr &msg){
-//  ROS_INFO("ir_img_cb");
-//  std::cout << "ir timestamp = " << msg->header.stamp << std::endl;
-    stamp = msg->header.stamp;
-    cv_bridge::CvImageConstPtr cv_ptr_raw_ir;
-    cv_ptr_raw_ir = cv_bridge::toCvShare(msg,sensor_msgs::image_encodings::MONO8);
-    ir_img = cv_ptr_raw_ir->image;
-//  cv::equalizeHist(ir_img, ir_img); //对图像均衡化
-#ifdef SHOW_ORIGIN_IMG
-    auto ir_img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", ir_img).toImageMsg();
-    pub_ir_img.publish(ir_img_msg);
-#endif
-    if(ir_img.empty()){
-        printf(RED"Not receive valid ir_img\n");
-        return;
-    }
-    landmark_pose_solve();
-}
+//============================= ir_img receive =============================//
 
 void PnPTargetNodeROS::landmark_pose_solve(){
     ir_img_color_show = cv::Mat::zeros(ir_img.size(), CV_8UC3);
     cv::cvtColor(ir_img, ir_img_color_show, CV_GRAY2BGR);
-
     //光流追踪
     if(opticalReadyFlag){
         opticalGoodFlag = optical_flow(ir_img,marker_pixels);
@@ -232,53 +257,58 @@ void PnPTargetNodeROS::landmark_pose_solve(){
 */
 //marker在camera下的位姿
 #ifdef USE_IMU_DIFF
-    T_camera_to_markers.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity(); // landmark在相机下的姿态暂定为Identity()
+    T_image_to_markers.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity(); // landmark在相机下的姿态暂定为Identity()
 #else
-    T_camera_to_markers.block<3, 3>(0, 0) = target_q_in_img.toRotationMatrix(); // 改成landmark在相机下的姿态
+    T_image_to_markers.block<3, 3>(0, 0) = target_q_in_img.toRotationMatrix(); // 改成landmark在相机下的姿态
 #endif
-    T_camera_to_markers.block<3, 1>(0, 3) = target_pos_in_img;
+    T_image_to_markers.block<3, 1>(0, 3) = target_pos_in_img;
 
-
-    //先从图像坐标系到相机坐标系，然后从相机坐标系到飞机坐标系
-    T_body_to_drone = T_body_to_camera * T_camera_to_markers;
+    //先从相机坐标系到图像坐标系，然后从图像坐标系到标记点坐标系，再由标记点坐标系到飞机坐标系
+    T_camera_to_drone = T_camera_to_image * T_image_to_markers * T_IRLandmark_to_drone;
     // T_body_to_drone.block<3,1>(0,3) = T_body_to_drone.block<3,1>(0,3) + T_markers_to_drone.block<3,1>(0,3); //marker在drone1坐标系下的位置
-    R_body_to_drone = T_body_to_drone.block<3, 3>(0, 0);
-#ifdef USE_IMU_DIFF
-    q_body_to_drone = yaw_init_offset * q_body_to_drone;//将初始用视觉marker pixel得到的yaw角度加进去
-#else
-    q_body_to_drone = Eigen::Quaterniond(R_body_to_drone);
-#endif
-    t_body_to_drone = T_body_to_drone.block<3, 1>(0, 3);
+    R_camera_to_drone = T_camera_to_drone.block<3, 3>(0, 0);
+
+    t_camera_to_drone = EigenVector3dToTFVector3(T_camera_to_drone.block<3, 1>(0, 3));
+    q_camera_to_drone = EigenQuaterniondToTFQuaternion(Eigen::Quaterniond(R_camera_to_drone));
+    
 
 //=====================================写入文件进一步分析======================================//
     
-    t_body_to_drone_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/t_body_to_drone_camC.txt",ios::out|ios::app);
+    t_camera_to_drone_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/t_body_to_drone_camC.txt",ios::out|ios::app);
 	//输入你想写入的内容 
-	t_body_to_drone_file<<t_body_to_drone[0]<<" "<<t_body_to_drone[1]<<" "<<t_body_to_drone[2]<<endl;
-	t_body_to_drone_file.close();
+	t_camera_to_drone_file<<t_camera_to_drone[0]<<" "<<t_camera_to_drone[1]<<" "<<t_camera_to_drone[2]<<endl;
+	t_camera_to_drone_file.close();
 
-    q_body_to_drone_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/q_body_to_drone_camC.txt",ios::out|ios::app);
+    q_camera_to_drone_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/q_camera_to_drone_camC.txt",ios::out|ios::app);
 	//输入你想写入的内容 
-	q_body_to_drone_file<<q_body_to_drone.w()<<" "<<q_body_to_drone.x()<<" "<<q_body_to_drone.y()<<" "<<q_body_to_drone.z()<<endl;
-	q_body_to_drone_file.close();
+	q_camera_to_drone_file<<q_camera_to_drone.w()<<" "<<q_camera_to_drone.x()<<" "<<q_camera_to_drone.y()<<" "<<q_camera_to_drone.z()<<endl;
+	q_camera_to_drone_file.close();
     
 //=====================================写入文件进一步分析======================================//
 
-    printf(GREEN "[PNP] t_body_to_drone = %.3f, %.3f, %.3f | q_body_to_drone (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
-         t_body_to_drone[0], t_body_to_drone[1], t_body_to_drone[2],
-         q_body_to_drone.w(), q_body_to_drone.x(), q_body_to_drone.y(), q_body_to_drone.z());
+    printf(GREEN "[PNP] t_camera_to_drone = %.3f, %.3f, %.3f | q_camera_to_drone (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
+         t_camera_to_drone.x(), t_camera_to_drone.y(), t_camera_to_drone.z(),
+         q_camera_to_drone.getW(), q_camera_to_drone.getX(), q_camera_to_drone.getY(), q_camera_to_drone.getZ());
+    
     if(pnpGoodFlag && (opticalGoodFlag || roiGoodFlag)){
-        geometry_msgs::PoseStamped msg_T_camera_to_drone;
-        msg_T_camera_to_drone.header.stamp = stamp;
-        msg_T_camera_to_drone.pose.position.x = t_body_to_drone[0];
-        msg_T_camera_to_drone.pose.position.y = t_body_to_drone[1];
-        msg_T_camera_to_drone.pose.position.z = t_body_to_drone[2];
-        msg_T_camera_to_drone.pose.orientation.w = q_body_to_drone.w();
-        msg_T_camera_to_drone.pose.orientation.x = q_body_to_drone.x();
-        msg_T_camera_to_drone.pose.orientation.y = q_body_to_drone.y();
-        msg_T_camera_to_drone.pose.orientation.z = q_body_to_drone.z();
-        pub_T_camera_to_drone.publish(msg_T_camera_to_drone);
+        camera_to_drone.setOrigin(t_camera_to_drone);
+		camera_to_drone.setRotation(q_camera_to_drone);
+
+        br0->sendTransform(tf::StampedTransform(camera_to_drone, ros::Time::now(), cam, "Estimationfrom"+cam));
+        
+        // geometry_msgs::PoseStamped msg_T_camera_to_drone;
+        // msg_T_camera_to_drone.header.stamp = stamp;
+        // msg_T_camera_to_drone.pose.position.x = t_camera_to_drone[0];
+        // msg_T_camera_to_drone.pose.position.y = t_camera_to_drone[1];
+        // msg_T_camera_to_drone.pose.position.z = t_camera_to_drone[2];
+        // msg_T_camera_to_drone.pose.orientation.w = q_camera_to_drone.w();
+        // msg_T_camera_to_drone.pose.orientation.x = q_camera_to_drone.x();
+        // msg_T_camera_to_drone.pose.orientation.y = q_camera_to_drone.y();
+        // msg_T_camera_to_drone.pose.orientation.z = q_camera_to_drone.z();
+        // pub_T_camera_to_drone.publish(msg_T_camera_to_drone);
     }
+
+
 // //======================================= Ground Truth ============================================================//
 //     Eigen::Vector3d t_body_to_drone_gt = body_pose_vicon.Quat.inverse() * (drone_pose_vicon.pos - body_pose_vicon.pos);//转换到body坐标系
 // //  Eigen::Vector3d t_body_to_drone_gt = drone_neighbour_pose_vicon.pos - drone_pose_vicon.pos;//Vicon坐标系
@@ -699,14 +729,12 @@ bool PnPTargetNodeROS::optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsV
 bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
     printf("pnp_process function, opticalGoodFlag = %d, roiGoodFlag = %d\n",opticalGoodFlag, roiGoodFlag);
 
-    cout << pointsVector << endl;
-
     //solvePnP
     //solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_IPPE);
     solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false);
     Eigen::Vector3d eulerAngles;
     getEulerAngles(outputRvecRaw, eulerAngles, target_q_in_img);
-    target_pos_in_img << outputTvecRaw.val[0], outputTvecRaw.val[1], outputTvecRaw.val[2];
+    target_pos_in_img << outputTvecRaw.val[0], outputTvecRaw.val[1], outputTvecRaw.val[2];//转到相机坐标系下
     printf(YELLOW "[PnP Solve target] x: %.3f, y: %.3f, z: %.3f\n" RESET, target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
     msg_target_pose_from_img.header.stamp = stamp;
     target_pos_in_img[0] = min(max(target_pos_in_img[0], -20.0), 20.0);
@@ -808,45 +836,5 @@ bool PnPTargetNodeROS::refine_pixel(std::vector<cv::Point2f> &pts_raw, std::vect
     return true;
 }
 
-/**
-* 将欧拉角转化为四元数
-* @param roll
-* @param pitch
-* @param yaw
-* @return 返回四元数
-*/
-geometry_msgs::Quaternion PnPTargetNodeROS::euler2quaternion(float roll, float pitch, float yaw) {
-    geometry_msgs::Quaternion temp;
-    temp.w = cos(roll / 2) * cos(pitch / 2) * cos(yaw / 2) + sin(roll / 2) * sin(pitch / 2) * sin(yaw / 2);
-    temp.x = sin(roll / 2) * cos(pitch / 2) * cos(yaw / 2) - cos(roll / 2) * sin(pitch / 2) * sin(yaw / 2);
-    temp.y = cos(roll / 2) * sin(pitch / 2) * cos(yaw / 2) + sin(roll / 2) * cos(pitch / 2) * sin(yaw / 2);
-    temp.z = cos(roll / 2) * cos(pitch / 2) * sin(yaw / 2) - sin(roll / 2) * sin(pitch / 2) * cos(yaw / 2);
-    return temp;
-}
 
-Eigen::Quaterniond PnPTargetNodeROS::euler2quaternion_eigen(float roll, float pitch, float yaw) {
-    Eigen::Quaterniond temp;
-    temp.w() = cos(roll / 2) * cos(pitch / 2) * cos(yaw / 2) + sin(roll / 2) * sin(pitch / 2) * sin(yaw / 2);
-    temp.x() = sin(roll / 2) * cos(pitch / 2) * cos(yaw / 2) - cos(roll / 2) * sin(pitch / 2) * sin(yaw / 2);
-    temp.y() = cos(roll / 2) * sin(pitch / 2) * cos(yaw / 2) + sin(roll / 2) * cos(pitch / 2) * sin(yaw / 2);
-    temp.z() = cos(roll / 2) * cos(pitch / 2) * sin(yaw / 2) - sin(roll / 2) * sin(pitch / 2) * cos(yaw / 2);
-    return temp;
-}
-
-/**
-* 将四元数转化为欧拉角形式
-* @param x
-* @param y
-* @param z
-* @param w
-* @return 返回Vector3的欧拉角
-*/
-Eigen::Vector3d PnPTargetNodeROS::quaternion2euler(float x, float y, float z, float w) {
-    Eigen::Vector3d temp;
-    temp[0] = atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y));
-    // I use ENU coordinate system , so I plus ' - '
-    temp[1] = -asin(2.0 * (z * x - w * y));
-    temp[2] = atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z));
-    return temp;
-}
 

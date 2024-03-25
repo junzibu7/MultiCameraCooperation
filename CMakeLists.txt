@@ -32,6 +32,7 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs
   message_generation
   geometry_msgs
+  tf
 )
 find_package(uav_config REQUIRED)
 
@@ -82,4 +83,8 @@ target_link_libraries(pnp_ros_lib ${OpenCV_LIBS} ${catkin_LIBRARIES} math_tools_
 ## The main executable program to detect target and estimate it pose
 add_executable(multi_camera_cooperation_ros src/multi_camera_cooperation_ros_test.cpp)
 target_link_libraries(multi_camera_cooperation_ros pnp_ros_lib ${catkin_LIBRARIES} ${OpenCV_LIBS})
+
+## The executable program to broadcast base2servogroup transformation
+add_executable(base2servogp_broadcaster src/base2servogp_broadcaster.cpp)
+target_link_libraries(base2servogp_broadcaster ${catkin_LIBRARIES})
 

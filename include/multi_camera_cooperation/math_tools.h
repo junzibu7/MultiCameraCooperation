@@ -14,6 +14,10 @@
 #include <chrono>
 #include <sstream>
 
+#include <tf_conversions/tf_eigen.h>
+#include <tf/transform_broadcaster.h>
+#include <tf/transform_datatypes.h> 
+
 #include <Eigen/Eigen>
 #include <Eigen/Dense>
 
@@ -30,7 +34,9 @@
 
 using namespace std;
 
-
+geometry_msgs::Quaternion euler2quaternion(float roll, float pitch, float yaw);
+Eigen::Quaterniond euler2quaternion_eigen(float roll, float pitch, float yaw);
+Eigen::Vector3d  quaternion2euler(float x, float y, float z, float w);
 void getEulerAngles(cv::Vec3d &rvec, Eigen::Vector3d &eulerAngles, Eigen::Quaterniond &q);
 float get_lines_arctan(float line_1_k, float line_2_k, int aaa);
 double vectorNorm2D(Eigen::Vector2d& vec) ;
@@ -38,5 +44,9 @@ double vectorDotProduct(Eigen::Vector2d& vec1, Eigen::Vector2d& vec2);
 double vectorAngle(Eigen::Vector2d& vec1, Eigen::Vector2d& vec2, int method);
 bool checkRotationDirection(Eigen::Vector2d& init, Eigen::Vector2d& final);
 Eigen::Vector2d subtractPoints(cv::Point2f& point1, cv::Point2f& point2);
+
+//Eigen2TF
+tf::Quaternion EigenQuaterniondToTFQuaternion(Eigen::Quaterniond q_EIGEN) ;
+tf::Vector3 EigenVector3dToTFVector3(Eigen::Vector3d t);
 
 #endif
