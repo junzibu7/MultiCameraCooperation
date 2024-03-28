@@ -34,6 +34,8 @@
 
 using namespace std;
 
+const int pi = 3.1415926;
+
 geometry_msgs::Quaternion euler2quaternion(float roll, float pitch, float yaw);
 Eigen::Quaterniond euler2quaternion_eigen(float roll, float pitch, float yaw);
 Eigen::Vector3d  quaternion2euler(float x, float y, float z, float w);

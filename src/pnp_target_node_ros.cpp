@@ -2,7 +2,6 @@
 // Created by hzj on 24-2-28.
 //
 #include "multi_camera_cooperation/pnp_target_node_ros.h"
-#include "multi_camera_cooperation/math_tools.h"
 
 using namespace std;
 
@@ -19,7 +18,6 @@ void PnPTargetNodeROS::init(ros::NodeHandle &nh, tf::TransformBroadcaster* br){
 
     nh.param<std::string>("cam", cam, "camA"); 
     nh.param<double>("PnP_time_delay", PnP_time_delay, 0.0);//PnP检测中，由相机捕获、程序处理、滤波等带来的时间延迟
-    nh.param<int>("ir_binary_threshold", ir_binary_threshold, 50);
     nh.param<int>("drone_id", drone_id, 0);
     nh.param<std::string>("uav_config_file", uav_config_file, "default");
     nh.param<std::string>("write_image_path", write_image_path, "default");  
@@ -66,55 +64,18 @@ void PnPTargetNodeROS::init(ros::NodeHandle &nh, tf::TransformBroadcaster* br){
 
     
 //============================= Initialize ROS topic =============================//
-#ifdef IMG_COMPRESSED
-    sub_ir_img = nh.subscribe("/ir_mono_"+cam, 1, &PnPTargetNodeROS::ir_compressed_img_cb, this);
-#else
-    sub_ir_img = nh.subscribe("/ir_mono_"+cam, 1, &PnPTargetNodeROS::ir_raw_img_cb, this);
-#endif
+    sub_marker_pixel = nh.subscribe("/camA/multi_camera_cooperation_ros/ir_mono/marker_pixel", 1, &PnPTargetNodeROS::ir_marker_pixel_cb, this);
     sub_drone_vio_pose = nh.subscribe("/vio", 1, &PnPTargetNodeROS::drone_vio_pose_cb, this);
     sub_drone_vicon_pose = nh.subscribe("/mocap", 1, &PnPTargetNodeROS::drone_vicon_pose_cb, this);
     sub_drone_imu = nh.subscribe("/imu", 1, &PnPTargetNodeROS::drone_imu_cb, this);
     
-#ifdef SHOW_ORIGIN_IMG
-    pub_ir_img = nh.advertise<sensor_msgs::Image>("ir_mono_"+cam+"/origin",1);
-#endif
-    pub_marker_pixel = nh.advertise<multi_camera_cooperation::Markers>("/marker_pixel",10);
-    // pub_relative_attitude_by_marker_pixel = nh.advertise<geometry_msgs::PoseStamped>("relative_pose_by_marker_pixel",10);
     pub_drone_vicon_pose = nh.advertise<geometry_msgs::PoseStamped>("vicon/pose_correct", 1);
-    pub_ir_show_img = nh.advertise<sensor_msgs::Image>("ir_mono/show",1);
-    pub_ir_binary_img = nh.advertise<sensor_msgs::Image>("ir_mono/ir_binary",1);
-    pub_ir_erode_dilate_img = nh.advertise<sensor_msgs::Image>("ir_mono/ir_erode_dilate",1);
     // pub_target_pose_from_img = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_from_img", 1);
     // pub_target_pose_from_img_filter = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_from_img_filter", 1);
-    pub_target_pose_in_body = nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/topic_target_pose_in_body", 1);
-    // pub_target_pose_in_enu = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_in_enu", 1);
-    // pub_target_pose_in_enu_vicon = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_in_enu_vicon", 1);
+    // pub_target_pose_in_base = nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/topic_target_pose_in_body", 1);
     // pub_relative_pose_mocap =  nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/relative_pose_cam2target_mocap", 1);
-    pub_T_camera_to_drone =  nh.advertise<geometry_msgs::PoseStamped>("mulcam_pnp/T_camera_to_drone", 1);
-
 
     // pub_drone_model = nh.advertise<visualization_msgs::MarkerArray>("/drone_model", 1);
-    
-    if(uav_config->uav_name == "kun0"){
-      printf(YELLOW "[kun0] Publisher landmark_pose_solve: %s\n", pub_target_pose_in_body.getTopic().c_str());
-    }
-    
-    ROS_INFO("Publisher subscriber initialized");
-    ROS_INFO("[SWARM_DETECT] Finish initialize swarm detector, wait for data...");
-
-    cv_ptr_compressed_ir = boost::make_shared<cv_bridge::CvImage>();
-    cv_ptr_raw_ir = boost::make_shared<cv_bridge::CvImage const>();
-
-    marker_pixels_buffer.clear();
-
-    // //是否从launch中加载yaw角初值
-    // if(yaw_relative_init !=0.0){
-    //   printf(BOLDWHITE "USE pre-defined yaw offset: %f\n", yaw_relative_init);
-    //   yaw_initialized_flag = true;
-    //   marker_pixel_yaw_relative = yaw_relative_init;
-    // }else{
-    //   yaw_initialized_flag = false;
-    // }
 }   
 
 
@@ -142,10 +103,10 @@ void PnPTargetNodeROS::drone_vicon_pose_cb(const geometry_msgs::PoseStamped::Con
     drone_pose_vicon.Quat = Eigen::Quaterniond(drone_pose_vicon.Quat.toRotationMatrix() * uav_config->Vicon_correction);
 }
 
-void PnPTargetNodeROS::body_vicon_pose_cb(const geometry_msgs::PoseStamped::ConstPtr &msg){
-    body_pose_vicon.pos << msg->pose.position.x, msg->pose.position.y, msg->pose.position.z;
-    body_pose_vicon.Quat = Eigen::Quaterniond(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z);
-    body_pose_vicon.Quat = Eigen::Quaterniond(body_pose_vicon.Quat.toRotationMatrix() * uav_config->Vicon_correction);
+void PnPTargetNodeROS::base_vicon_pose_cb(const geometry_msgs::PoseStamped::ConstPtr &msg){
+    base_pose_vicon.pos << msg->pose.position.x, msg->pose.position.y, msg->pose.position.z;
+    base_pose_vicon.Quat = Eigen::Quaterniond(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z);
+    base_pose_vicon.Quat = Eigen::Quaterniond(base_pose_vicon.Quat.toRotationMatrix() * uav_config->Vicon_correction);
 }
 
 void PnPTargetNodeROS::drone_imu_cb(const sensor_msgs::Imu::ConstPtr &msg){
@@ -168,79 +129,23 @@ void PnPTargetNodeROS::drone_imu_cb(const sensor_msgs::Imu::ConstPtr &msg){
 //     filter->agent_self.feed_measurement_imu(message);
 }
 
-//============================= ir_img receive =============================//
-
-void PnPTargetNodeROS::ir_raw_img_cb(const sensor_msgs::Image::ConstPtr &msg){
-//  ROS_INFO("ir_img_cb");
-//  std::cout << "ir timestamp = " << msg->header.stamp << std::endl;
+//============================= marker_pixel receive =============================//
+void PnPTargetNodeROS::ir_marker_pixel_cb(const multi_camera_cooperation::landmark::ConstPtr &msg){
     stamp = msg->header.stamp;
-    cv_bridge::CvImageConstPtr cv_ptr_raw_ir;
-    cv_ptr_raw_ir = cv_bridge::toCvShare(msg,sensor_msgs::image_encodings::MONO8);
-    ir_img = cv_ptr_raw_ir->image;
-//  cv::equalizeHist(ir_img, ir_img); //对图像均衡化
-#ifdef SHOW_ORIGIN_IMG
-    auto ir_img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", ir_img).toImageMsg();
-    pub_ir_img.publish(ir_img_msg);
-#endif
-    if(ir_img.empty()){
-        printf(RED"Not receive valid ir_img\n");
-        return;
-    }
+    for (int i = 0; i < msg->x.size(); i++)
+        marker_pixels.emplace_back(cv::Point2f(msg->x[i], msg->y[i]));
     landmark_pose_solve();
 }
+//============================= marker_pixel receive =============================//
 
-void PnPTargetNodeROS::ir_compressed_img_cb(const sensor_msgs::CompressedImage::ConstPtr &msg){
-//    ROS_INFO("ir_img_cb");
-//    std::cout << "ir timestamp = " << msg->header.stamp << std::endl;
-    stamp = msg->header.stamp;
-    cv_ptr_compressed_ir = cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::MONO8);
-    ir_img = cv_ptr_compressed_ir->image;
-//    cv::equalizeHist(ir_img, ir_img); //对图像均衡化
-//    ir_img = cv::imdecode(msg->data, cv::IMREAD_GRAYSCALE);
-#ifdef SHOW_ORIGIN_IMG
-    auto ir_img_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", ir_img).toImageMsg();
-    pub_ir_img.publish(ir_img_msg);
-#endif
-    // if(!yaw_initialized_flag){
-    //   yaw_initialized_flag = init_relative_yaw();
-    //   return;
-    // }
-    if(ir_img.empty()){
-        printf(RED"Not receive valid ir_img\n");
-        return;
-    }
-    landmark_pose_solve();
-}
-
-//============================= ir_img receive =============================//
 
 void PnPTargetNodeROS::landmark_pose_solve(){
-    ir_img_color_show = cv::Mat::zeros(ir_img.size(), CV_8UC3);
-    cv::cvtColor(ir_img, ir_img_color_show, CV_GRAY2BGR);
-    //光流追踪
-    if(opticalReadyFlag){
-        opticalGoodFlag = optical_flow(ir_img,marker_pixels);
-    }
-    //如果光流追踪失败，则重新清除marker,然后进行ROI
-    if(!opticalGoodFlag){
-        ROS_WARN("optical flow fails, try to roi detect!");
+    //进行PnP解算
+    pnpGoodFlag = pnp_process(marker_pixels);
+    if(!pnpGoodFlag){
         marker_pixels.clear();
-        roiGoodFlag = ir_img_process(ir_img, marker_pixels, 2);
     }
-    //如果光流或者ROI得到 marker_pixels,进行PnP解算
-    if(opticalGoodFlag || roiGoodFlag){
-        pnpGoodFlag = pnp_process(marker_pixels);
-        if(pnpGoodFlag){
-            // opticalReadyFlag = true;
-        }else{
-            opticalReadyFlag = false;
-            marker_pixels.clear();
-        }
-    }else{
-        pnpGoodFlag = false;
-        printf(YELLOW "ir_img process failed.\n");
-        return;
-    }
+
 
 //    pub_target_pose_from_img.publish(msg_target_pose_from_img);
 //  ros::Time t = ros::Time().fromSec(stamp.toSec() - PnP_time_delay);//PnP检测中，由相机捕获、程序处理、滤波等带来的时间延迟
@@ -290,22 +195,11 @@ void PnPTargetNodeROS::landmark_pose_solve(){
          t_camera_to_drone.x(), t_camera_to_drone.y(), t_camera_to_drone.z(),
          q_camera_to_drone.getW(), q_camera_to_drone.getX(), q_camera_to_drone.getY(), q_camera_to_drone.getZ());
     
-    if(pnpGoodFlag && (opticalGoodFlag || roiGoodFlag)){
+    if(pnpGoodFlag){
         camera_to_drone.setOrigin(t_camera_to_drone);
 		camera_to_drone.setRotation(q_camera_to_drone);
 
         br0->sendTransform(tf::StampedTransform(camera_to_drone, ros::Time::now(), cam, "Estimationfrom"+cam));
-        
-        // geometry_msgs::PoseStamped msg_T_camera_to_drone;
-        // msg_T_camera_to_drone.header.stamp = stamp;
-        // msg_T_camera_to_drone.pose.position.x = t_camera_to_drone[0];
-        // msg_T_camera_to_drone.pose.position.y = t_camera_to_drone[1];
-        // msg_T_camera_to_drone.pose.position.z = t_camera_to_drone[2];
-        // msg_T_camera_to_drone.pose.orientation.w = q_camera_to_drone.w();
-        // msg_T_camera_to_drone.pose.orientation.x = q_camera_to_drone.x();
-        // msg_T_camera_to_drone.pose.orientation.y = q_camera_to_drone.y();
-        // msg_T_camera_to_drone.pose.orientation.z = q_camera_to_drone.z();
-        // pub_T_camera_to_drone.publish(msg_T_camera_to_drone);
     }
 
 
@@ -329,184 +223,15 @@ void PnPTargetNodeROS::landmark_pose_solve(){
 //   pub_relative_pose_mocap.publish(msg_relative_pose);
 // //======================================= Ground Truth ============================================================//
 
-
-#ifdef ENABLE_VISUALIZATION
-//可视化求解情况
-//   if(pnpGoodFlag){
-//     cv::putText(ir_img_color_show,
-//                 "pnp",
-//                 cv::Point(470, 20), cv::FONT_HERSHEY_TRIPLEX ,0.65,cv::Scalar(0,255,0),1,false);
-//   }else{
-//     cv::putText(ir_img_color_show,
-//                 "pnp",
-//                 cv::Point(470, 20), cv::FONT_HERSHEY_TRIPLEX ,0.65,cv::Scalar(0,0,255),1,false);
-//   }
-
-//画横线框，和图像中心点，校验求解目标原点是否正确
-//  cv::circle(ir_img_color_show,cv::Point2f(320,240),2,cv::Scalar(255,0,0),1);
-//  cv::line(ir_img_color_show,cv::Point2f(0,240),cv::Point2f(640,240),cv::Scalar(255,0,0),1);
-//  cv::line(ir_img_color_show,cv::Point2f(320,0),cv::Point2f(320,480),cv::Scalar(255,0,0),1);
-//  cv::namedWindow("ir_img_color_show", cv::WINDOW_NORMAL);
-//  cv::resizeWindow("ir_img_color_show", 2560, 1920);
-//  cv::imshow("ir_img_color_show", ir_img_color_show);
-//  cv::waitKey(1);
-    
-    for (int i = 0; i < marker_pixels.size(); i++) { 
-        cv::circle(ir_img_color_show, cv::Point2i(marker_pixels[i].x, marker_pixels[i].y), 5,  cv::Scalar(0,0,255), 1, cv::LINE_AA);
-        cv::putText(ir_img_color_show, std::to_string(i), cv::Point2i(marker_pixels[i].x, marker_pixels[i].y), cv::FONT_HERSHEY_TRIPLEX, 0.65, cv::Scalar(0,255,0), 1, false);
-    }
-    auto ir_show_msg_img = cv_bridge::CvImage(std_msgs::Header(), "bgr8", ir_img_color_show).toImageMsg();
-    pub_ir_show_img.publish(ir_show_msg_img);
-#endif
 }
 
-
-bool PnPTargetNodeROS::ir_img_process(cv::Mat &_ir_img, vector<cv::Point2f> &pointsVector, int model){
-    ROS_WARN("ir_img_process function");
-    if(_ir_img.empty())
-    {
-        ROS_ERROR("ir_img_process, NO _ir_img !!!");
-        return false;
-    }
-
-    if(model == 1){//尝试用FAST检测特征点
-        if(extractFeatures(ir_img, pointsVector)){
-            printf("[ir_img_process] by extractFeatures get %zu contours\n", pointsVector.size());
-            return true;
-        }else{
-            ROS_ERROR("[ir_img_process] the number of contours is %zu but should be %d", ir_contours.size(), landmark_num);
-            return false;
-        }
-    }
-
-    if(model == 2){//尝试用binary检测特征点
-        if(binary_threshold(ir_img, pointsVector)){
-            printf("[ir_img_process] by binary_threshold get %zu contours\n", pointsVector.size());
-            return true;
-        }else{
-            ROS_ERROR("[ir_img_process] the number of contours is %zu but should be %d", ir_contours.size(), landmark_num);
-            return false;
-        }
-    }
-
-    ROS_ERROR("error process method, ir_img_process failed !!!");
-    return false;
-
-}
-
-bool PnPTargetNodeROS::extractFeatures(cv::Mat &frame, vector<cv::Point2f> &pointsVector){
-    pointsVector.clear();
-    cv::goodFeaturesToTrack(frame, pointsVector, landmark_num, 0.01, 10);
-
-#ifdef USE_4_Point
-    if(pointsVector.size() == landmark_num){
-        if(T_shape_identify(pointsVector)){
-            return true;
-        }else{
-            return false;
-        }
-    }else{
-        return false;
-    }
-#endif
-}
-
-bool PnPTargetNodeROS::binary_threshold(cv::Mat &frame, vector<cv::Point2f> &pointsVector){
-    pointsVector.clear();
-
-    int try_count = 0;
-    while(1){
-        //二值化及膨胀腐蚀
-        threshold(frame, ir_binary, ir_binary_threshold, 255, cv::THRESH_BINARY);
-        cv::erode(ir_binary, ir_erode, erodeElement);
-        auto ir_erode_dilate_img = cv_bridge::CvImage(std_msgs::Header(), "mono8", ir_erode).toImageMsg();
-        pub_ir_erode_dilate_img.publish(ir_erode_dilate_img);
-        //寻找轮廓
-        findContours(ir_erode, ir_contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_NONE);
-        cout << "contours number = " << ir_contours.size() << endl;
-
-        if(ir_contours.size() < landmark_num){
-            ir_binary_threshold -= 5;
-            printf(YELLOW "[down] ir_binary_threshold set to %d\n", ir_binary_threshold);
-            if(ir_binary_threshold <= 20){
-                ir_binary_threshold = 80;
-                return false;
-            }
-        }else if(ir_contours.size() > landmark_num){
-            ir_binary_threshold += 5;
-            printf(YELLOW "[up] ir_binary_threshold set to %d\n", ir_binary_threshold);
-            if(ir_binary_threshold >= 220){
-                ir_binary_threshold = 80;
-                return false;
-            }
-        }else{
-            printf(GREEN"find %d, ir_binary_threshold set to %d\n", landmark_num, ir_binary_threshold);
-            break;
-        }
-
-        if(try_count++ > 30){ //如果30次都没有找到合适阈值，就返回false
-            return false;
-        }
-    }
-
-
-    //在ROI图像上画出边框,可视化发布边框
-    cv::Mat ir_binary_color_show;
-    cv::cvtColor(ir_erode, ir_binary_color_show, CV_GRAY2BGR);
-
-    for (int i = 0; i < ir_contours.size(); i++) {
-        cv::Rect bbox;
-        bbox = boundingRect(ir_contours[i]);
-        cv::rectangle(ir_binary_color_show, bbox, cv::Scalar(0, 255, 0), 1);
-    }
-    auto ir_binary_msg_img = cv_bridge::CvImage(std_msgs::Header(), "bgr8", ir_binary_color_show).toImageMsg();
-    pub_ir_binary_img.publish(ir_binary_msg_img);
-
-    drawContours(ir_img_color_show, ir_contours, -1, (0, 255, 0), 1);
-
-    if (ir_contours.size() == landmark_num) {
-        printf(GREEN "[ir_img process] get %zu contours\n", ir_contours.size());
-        for (int i = 0; i < ir_contours.size(); i++) {
-            cv::Rect bbox;
-            bbox = boundingRect(ir_contours[i]);
-            pointsVector.emplace_back(cv::Point2f((bbox.tl() + bbox.br()).x / 2.0, (bbox.tl() + bbox.br()).y / 2.0));
-            std::cout << "pointsVector xy = " << pointsVector[i].x << ", " << pointsVector[i].y << std::endl;
-        }
-    }
-    
-    //再采用灰度图去refine坐标
-    // if(!refine_pixel(marker_pixels_sorted,pointsVector,ir_img)){
-    //     printf(RED"refine_pixel failed! use origin points.\n" RESET);
-    //     pointsVector.clear();
-    //     pointsVector = marker_pixels_sorted;
-    // }
-
-#ifdef USE_4_Point
-    if(pointsVector.size() == landmark_num){
-        if(T_shape_identify(pointsVector)){
-            for (int i = 0; i < pointsVector.size(); i++) {
-                std::cout << "pointsVector xy = " << pointsVector[i].x << ", " << pointsVector[i].y << std::endl;
-            }
-            return true;
-        }else{
-            return false;
-        }
-    }else{
-        pointsVector.clear();
-        pointsVector = marker_pixels_buffer;
-        return false;
-    }
-#endif
-}
 
 bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
     marker_pixels_sorted.clear();
     marker_pixels_up.clear();
     marker_pixels_down.clear();
     float slope1[3] = {0};
-    bool TShapeGoodFlag = true;
-
-    
+    bool TShapeGoodFlag = true;   
 
     for(int i = 0; i < 4; i++){
         Eigen::Vector2d linkvector0 = subtractPoints(pointsVector[i], pointsVector[(i + 1) % 4]);
@@ -527,9 +252,8 @@ bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
         return false;
     }
 
-    cout<< "marker_pixels_up.size():"<<marker_pixels_up.size()<<endl;
-    cout<< marker_pixels_up<<endl;
-    cout<< "marker_pixels_down.size():"<<marker_pixels_down.size()<<endl;
+    // cout<< "marker_pixels_up.size():"<<marker_pixels_up.size()<<endl;
+    // cout<< "marker_pixels_down.size():"<<marker_pixels_down.size()<<endl;
 
     for(int i = 0; i < 3; i++){//need upgrade!!!
         Eigen::Vector2d linkvector0 = subtractPoints(marker_pixels_up[i], marker_pixels_up[(i + 1) % 3]);
@@ -576,158 +300,18 @@ bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
     
 }
 
-/**
- * @brief optical flow the given points
- * @param frame
- * @param outputPointsVector
- * @return
- */
-bool PnPTargetNodeROS::optical_flow(cv::Mat &frame, vector<cv::Point2f> &pointsVector)
-{
-//    ROS_WARN("optical_flow function");
-    //检查图像是否为空
-    if (frame.empty()){
-        ROS_ERROR("optical_follow ,NO frame !!!");
-        return false;
-    }
-    
-    nextImg = frame;
-
-//    cv::imshow("nextImg",nextImg);
-//    cv::waitKey(1);
-
-    //尝试先用Fast去提取点，如果错误，然后再用光流跟踪
-    if(extractFeatures(nextImg, nextImgPts)){
-        cv::Rect rect_temp;
-        rect_temp.x = (int)nextImgPts[0].x;
-        rect_temp.y = (int)nextImgPts[0].y;
-#ifdef USE_4_Point
-      rect_temp.width = (int)nextImgPts[1].x - (int)nextImgPts[0].x;
-      rect_temp.height = (int)nextImgPts[2].y - (int)nextImgPts[0].y;
-      opti_trust_region.x = max(rect_temp.x - (int)(0.5 * rect_temp.width), 0);
-      opti_trust_region.y = max(rect_temp.y - (int)(0.5 * rect_temp.height), 0);
-      opti_trust_region.width = min((int)(rect_temp.width * 2), 640 - opti_trust_region.x);
-      opti_trust_region.height = min((int)(rect_temp.height * 2), 480 - opti_trust_region.y);
-#endif
-//        printf("[trust_region after opti_flow] rect_temp.x = %d, .y = %d, width = %d, height = %d\n", rect_temp.x, rect_temp.y, rect_temp.width, rect_temp.height);
-        printf("[opti_trust_region after opti_flow] .x = %d, .y = %d, width = %d, height = %d\n", opti_trust_region.x, opti_trust_region.y, opti_trust_region.width, opti_trust_region.height);
-        //circle
-        cv::Point2f top_left(opti_trust_region.x, opti_trust_region.y);
-        cv::Point2f top_right(min(opti_trust_region.x+opti_trust_region.width, 640), opti_trust_region.y);
-        cv::Point2f bottom_left(opti_trust_region.x, min(opti_trust_region.y+opti_trust_region.height,480));
-        cv::Point2f bottom_right(min(opti_trust_region.x+opti_trust_region.width,640), min(opti_trust_region.y+opti_trust_region.height,480));
-        cv::circle(ir_img_color_show,top_left,3,cv::Scalar(0,255,0),-1);
-        cv::circle(ir_img_color_show,top_right,3,cv::Scalar(0,255,0),-1);
-        cv::circle(ir_img_color_show,bottom_left,3,cv::Scalar(0,255,0),-1);
-        cv::circle(ir_img_color_show,bottom_right,3,cv::Scalar(0,255,0),-1);
-        cv::line(ir_img_color_show, top_left, top_right, cv::Scalar(255,255,0), 1);
-        cv::line(ir_img_color_show, top_right, bottom_right, cv::Scalar(255,255,0), 1);
-        cv::line(ir_img_color_show, bottom_right, bottom_left, cv::Scalar(255,255,0), 1);
-        cv::line(ir_img_color_show, bottom_left, top_left, cv::Scalar(255,255,0), 1);
-        printf("[optical_flow] by extractFeatures get %zu contours\n", nextImgPts.size());
-        pointsVector.clear();
-        pointsVector = nextImgPts;
-        //交换前后帧图像和特征点位置
-        swap(nextImg, prevImg);
-        swap(prevImgPts, nextImgPts);
-        printf("Fast Feature Extraction Success!\n");
-        return true;
-    }
-
-    //构造前一张图像和光点
-    printf("nextImg.size = %d, %d\n", nextImg.rows, nextImg.cols);
-//    nextImg = frame; //旧代码，不需要mask
-    prevImgPts = pointsVector;
-    nextImgPts.clear();
-    nextImgPts.resize(prevImgPts.size());
-    status.clear();//光流跟踪状态
-    err.clear();
-    //检查光点数是否正确
-    if (prevImgPts.size() != landmark_num){
-        swap(nextImg, prevImg); //图像迭代成最新的，然后结束
-        ROS_ERROR("prevImgPts.size() != 6 but == %d", int(prevImgPts.size()));
-        return false;
-    }
-    //检查前一张图像是否存在
-    if (prevImg.empty()){
-        nextImg.copyTo(prevImg);
-        ROS_INFO("prevImg is empty ,so nextImg copy to prevImg");
-    }
-//    cv::imshow("nextImg",nextImg);
-//    cv::imshow("trust_region_mask",trust_region_mask);
-//    cv::waitKey(1);
-
-    calcOpticalFlowPyrLK(prevImg, nextImg, prevImgPts, nextImgPts, status, err, winSize,
-                         3, termcrit, 0, 0.001);
-//    ROS_INFO("complete opticalFlow");
-    size_t i, k;
-    for (i = k = 0; i < nextImgPts.size(); i++) {
-//        std::cout << nextImgPts[i] << std::endl;
-        ///TODO why is status false
-        if (!status[i]){
-            ROS_ERROR("[%zu] optical follow status error !!", i);
-            prevImgPts.clear();
-            nextImgPts.clear();
-            return false;
-        }
-        if(nextImgPts[i].x < 10 || nextImgPts[i].x > ir_img.cols-10 || nextImgPts[i].y < 10 || nextImgPts[i].y > ir_img.rows-10){
-            ROS_ERROR("points edge: failed.");
-            return false;
-        }
-//        nextImgPts[k++] = nextImgPts[i];// according to status, only assign detected element into nextImgPts
-//        printf("[after opti_flow] nextImgPts[%zu].x = %f, .y = %f\n", i, nextImgPts[i].x, nextImgPts[i].y);
-    }
-    //光流之后也需要做检查，保证没有追踪错误，否则直接return false. 按行坐标[3]>[2]>[1]>[0],第二行[4]<[1]。按列坐标[4]>[0],[5]>[2]
-  //use the distance between landmarks to check
-
-    if (prevImgPts.size() == nextImgPts.size()) {
-        //TODO:加入pixel_refine函数，让点准确提取出来并且受噪声影响较小。
-        pointsVector.clear();
-        if(!refine_pixel(nextImgPts, pointsVector, nextImg)){
-            printf(RED"refine_pixel failed! use origin points.\n" RESET);
-            if(pointsVector.size() < 4){
-                //说明没有全部的点都refine成功，很有可能是光流给进去的点不对，所以直接return false。此处正常来讲都可以refine成功
-                return false;
-            }
-            pointsVector.clear();
-            pointsVector = nextImgPts; //如果refine失败，则直接把 nextImgPts 给 pointsVector
-        }
-
-        //将trust_region重新置为光流追踪后的点的外延区域，trust_region以检测出的目标区域块为中心的3*3的9个区域块都为置信区域
-        // 20231205 not use trust_region after optical flow
-        cv::Rect rect_temp;
-        rect_temp.x = (int)nextImgPts[0].x;
-        rect_temp.y = (int)nextImgPts[0].y;
-#ifdef USE_4_Point
-        rect_temp.width = (int)nextImgPts[1].x - (int)nextImgPts[0].x;
-        rect_temp.height = (int)nextImgPts[2].y - (int)nextImgPts[0].y;
-        opti_trust_region.x = max(rect_temp.x - (int)(0.5 * rect_temp.width), 0);
-        opti_trust_region.y = max(rect_temp.y - (int)(0.5 * rect_temp.height), 0);
-        opti_trust_region.width = min((int)(rect_temp.width * 2), 640 - opti_trust_region.x);
-        opti_trust_region.height = min((int)(rect_temp.height * 2), 480 - opti_trust_region.y);
-#endif
-//        printf("[trust_region after opti_flow] rect_temp.x = %d, .y = %d, width = %d, height = %d\n", rect_temp.x, rect_temp.y, rect_temp.width, rect_temp.height);
-        printf("[opti_trust_region after opti_flow] .x = %d, .y = %d, width = %d, height = %d\n", opti_trust_region.x, opti_trust_region.y, opti_trust_region.width, opti_trust_region.height);
-        //circle
-        cv::circle(ir_img_color_show,cv::Point2f(opti_trust_region.x, opti_trust_region.y),2,cv::Scalar(0,255,0),-1);
-        cv::circle(ir_img_color_show,cv::Point2f(min(opti_trust_region.x+opti_trust_region.width, 640), opti_trust_region.y),2,cv::Scalar(0,255,0),-1);
-        cv::circle(ir_img_color_show,cv::Point2f(opti_trust_region.x, min(opti_trust_region.y+opti_trust_region.height,480)),2,cv::Scalar(0,255,0),-1);
-        cv::circle(ir_img_color_show,cv::Point2f(min(opti_trust_region.x+opti_trust_region.width,640), min(opti_trust_region.y+opti_trust_region.height,480)),2,cv::Scalar(0,255,0),-1);
-        //交换前后帧图像和特征点位置
-        swap(nextImg, prevImg);
-        swap(prevImgPts, nextImgPts);
-        return true;
-    }else {
-        swap(nextImg, prevImg);
-        ROS_ERROR("prevImgPts.size() == nextImgPts.size() failed. We try Fast to detect corner points.");
-        //如果光流失败尝试用FAST再次检测角点
-//        vector<cv::Point2f> pointsVectorByExtractFeat;
-        return false;
-    }
-}
-
 bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
-    printf("pnp_process function, opticalGoodFlag = %d, roiGoodFlag = %d\n",opticalGoodFlag, roiGoodFlag);
+    printf("pnp_process function begin!");
+
+#ifdef USE_4_Point
+    if(pointsVector.size() == landmark_num){
+        if(!T_shape_identify(pointsVector)){
+            return false;
+        }
+    }else{
+        return false;
+    }
+#endif
 
     //solvePnP
     //solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_IPPE);
@@ -736,7 +320,7 @@ bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
     getEulerAngles(outputRvecRaw, eulerAngles, target_q_in_img);
     target_pos_in_img << outputTvecRaw.val[0], outputTvecRaw.val[1], outputTvecRaw.val[2];//转到相机坐标系下
     printf(YELLOW "[PnP Solve target] x: %.3f, y: %.3f, z: %.3f\n" RESET, target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
-    msg_target_pose_from_img.header.stamp = stamp;
+    msg_target_pose_from_img.header.stamp = ros::Time::now();
     target_pos_in_img[0] = min(max(target_pos_in_img[0], -20.0), 20.0);
     target_pos_in_img[1] = min(max(target_pos_in_img[1], -10.0), 10.0);
     target_pos_in_img[2] = min(max(target_pos_in_img[2], -10.0), 10.0);
@@ -764,77 +348,5 @@ bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
 //    printf(YELLOW "[PnP min max] x: %.3f, y: %.3f, z: %.3f \n" RESET, target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
     return true;
 }
-
-/**
- * @brief 从不同范围尺度和阈值计算marker_pixel的中心点
- * @param pts_raw
- * @return
- */
-bool PnPTargetNodeROS::refine_pixel(std::vector<cv::Point2f> &pts_raw, std::vector<cv::Point2f> &pts_refine, cv::Mat &img){
-//    cv::HoughCircles
-    for(int i = 0; i < pts_raw.size(); i++){
-        cv::rectangle(ir_img_color_show, cv::Point2f(pts_raw[i].x-win_width, pts_raw[i].y-win_width),
-                      cv::Point2f(pts_raw[i].x+win_width, pts_raw[i].y+win_width),cv::Scalar(200,20,0),1);
-
-        const int n = (2*win_width+1) * (2*win_width+1); //窗内最多这么多像素值会被加入计算
-        Eigen::Matrix3Xi filterPts; // xy存储像素位置，z存储权重 3行n列
-        filterPts.resize(3, n);
-        int count_filter = 0;
-        int weight_sum = 0; //权重总数
-        int threshold = 232; //选取大于阈值的点用作中心计算
-        //取均值思路，但为每个超过阈值而参与的点，根据灰度值赋予融合权重
-        //若threshold初始取的不合适，则至少选出一个点再跳出
-        while(1){
-//            printf(GREEN "threshold = %d\n" RESET, threshold);
-            filterPts.setZero();
-            weight_sum = 0;
-            count_filter = 0;
-            for(int j = -win_width + 1; j < win_width; j++){
-                for(int k = -win_width + 1; k < win_width; k++){
-                    int index_x = j + pts_raw[i].x;
-                    int index_y = k + pts_raw[i].y;
-                    if(img.at<uchar>(index_y,index_x) > threshold){ //把阈值调整，让寻找中心更准确
-                        filterPts(0, count_filter) = index_x;
-                        filterPts(1, count_filter) = index_y;
-                        filterPts(2, count_filter) = img.at<uchar>(index_y,index_x) - threshold; //xy位置，和超过阈值的灰度值(作为权重 )
-                        weight_sum += filterPts(2, count_filter);
-                        count_filter++;
-                    }
-                }
-            }
-//            printf(REDPURPLE "refine threshold now = %d\n" RESET, threshold);
-            if(count_filter < 2){ //最少也要选出2个点来做权重融合，如果是1个或者0个就用之前的pts_raw
-                threshold -= 1; //若阈值太高选不出点，则降低阈值
-                if(threshold < 150){
-                    printf(REDPURPLE "refine threshold too low = %d, return false ..., maybe optical flow track failed\n" RESET, threshold);
-                    return false;
-                }
-            }else if(count_filter > 9){
-                threshold += 1; //若阈值太低选出点过多，则增加阈值
-                if(threshold == 255){
-                    printf(REDPURPLE "refine threshold too high = %d, use all the points\n" RESET, threshold);
-                    break;
-                }
-            }else{
-//                printf(GREEN "refine count_filter = %d\n" RESET, count_filter);
-                break;//选取数目合适，跳出循环
-            }
-        }
-//        printf(GREEN "count_filter: %d, weight_sum: %d\n" RESET, count_filter, weight_sum);
-        float u_pixel_weighted = 0;
-        float v_pixel_weighted = 0;
-        for (int j = 0; j < count_filter; ++j) {
-            u_pixel_weighted += filterPts(0,j) * 1.0*filterPts(2,j)/weight_sum; //u pixel 乘上该像素权重在总权重中的占比
-            v_pixel_weighted += filterPts(1,j) * 1.0*filterPts(2,j)/weight_sum; //v pixel 乘上该像素权重在总权重中的占比
-//            printf(YELLOW "u: %d, v:%d, weight:%f\n" RESET,filterPts(0,j), filterPts(1,j), 1.0*filterPts(2,j)/weight_sum);
-        }
-        pts_raw[i].x = u_pixel_weighted;
-        pts_raw[i].y = v_pixel_weighted;
-//        printf(REDPURPLE "pts[%zu] u_pixel_weighted: %f, v_pixel_weighted: %f\n" RESET,i, u_pixel_weighted, v_pixel_weighted);
-        pts_refine.emplace_back(pts_raw[i]);
-    }
-    return true;
-}
-
 
 
