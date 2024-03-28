@@ -1,3 +1,5 @@
 # multi_camera_cooperation
 
-The depository for cooperative observation with multiple cameras.
+多相机协同观测并估计无人机的状态。
+
+主动视觉部分见https://gitee.com/hezijia/ftservo-control
