@@ -41,6 +41,8 @@ void PNPCooperationNodeROS::broadcast_base_to_coopestimation()
 
 void PNPCooperationNodeROS::cam_estimation_fuse()
 {
+    cam_estimation_listener();
+    
     t_coopestimation = tf::Vector3((base_to_estimationfromcamA.getOrigin().x() + base_to_estimationfromcamB.getOrigin().x() + base_to_estimationfromcamC.getOrigin().x() + base_to_estimationfromcamD.getOrigin().x()) / 4,
                                    (base_to_estimationfromcamA.getOrigin().y() + base_to_estimationfromcamB.getOrigin().y() + base_to_estimationfromcamC.getOrigin().y() + base_to_estimationfromcamD.getOrigin().y()) / 4,
                                    (base_to_estimationfromcamA.getOrigin().z() + base_to_estimationfromcamB.getOrigin().z() + base_to_estimationfromcamC.getOrigin().z() + base_to_estimationfromcamD.getOrigin().z()) / 4);
@@ -48,4 +50,6 @@ void PNPCooperationNodeROS::cam_estimation_fuse()
                                       (base_to_estimationfromcamA.getRotation().x() + base_to_estimationfromcamB.getRotation().x() + base_to_estimationfromcamC.getRotation().x() + base_to_estimationfromcamD.getRotation().x()) / 4,
                                       (base_to_estimationfromcamA.getRotation().y() + base_to_estimationfromcamB.getRotation().y() + base_to_estimationfromcamC.getRotation().y() + base_to_estimationfromcamD.getRotation().y()) / 4,
                                       (base_to_estimationfromcamA.getRotation().z() + base_to_estimationfromcamB.getRotation().z() + base_to_estimationfromcamC.getRotation().z() + base_to_estimationfromcamD.getRotation().z()) / 4);
+
+    broadcast_base_to_coopestimation();
 }
