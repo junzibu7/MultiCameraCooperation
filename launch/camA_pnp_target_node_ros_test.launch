@@ -1,7 +1,7 @@
 <launch>
     <!--work in main thread, if it is loaded before image_show, came_read will block the launch of image_show-->
     <group ns="camA">
-    <node pkg="multi_camera_cooperation" type="multi_camera_cooperation_ros" name="multi_camera_cooperation_ros" output="screen" required="true">
+    <node pkg="multi_camera_cooperation" type="single_cam_process_ros" name="single_cam_process_ros" output="screen" required="true">
         <param name="cam" type="string" value="camA" />
         <param name="landmark_num" type="int" value="4" />
         <remap from="/ir_mono_camA" to="/camera/infra1/image_rect_raw/compressed"/>

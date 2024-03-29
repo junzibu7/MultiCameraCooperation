@@ -1,7 +1,7 @@
 <launch>
     <!--work in main thread, if it is loaded before image_show, came_read will block the launch of image_show-->
     <group ns="camC">
-    <node pkg="multi_camera_cooperation" type="multi_camera_cooperation_ros" name="multi_camera_cooperation_ros" output="screen" required="true">
+    <node pkg="multi_camera_cooperation" type="single_cam_process_ros" name="single_cam_process_ros" output="screen" required="true">
         <param name="cam" type="string" value="camC" />
         <remap from="/ir_mono_camC" to="/camC/infra1/image_rect_raw/compressed"/>
         <remap from="/vio" to="/kun0/mavros/local_position/pose"/>

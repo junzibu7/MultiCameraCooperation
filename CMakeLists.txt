@@ -73,20 +73,27 @@ MESSAGE('uav_config_INCLUDE_DIRS:'${uav_config_INCLUDE_DIRS})
 MESSAGE('My OpenCV_INCLUDE_DIRS:'${OpenCV_INCLUDE_DIRS})
 
 # ==================== core library ==================== #
-add_library(pnp_ros_lib src/pnp_target_node_ros.cpp)
 add_library(math_tools_lib src/math_tools.cpp)
+
+add_library(pnp_ros_lib src/pnp_target_node_ros.cpp)
 add_library(landmark_ros_lib src/landmark_extraction_node_ros.cpp)
 target_link_libraries(pnp_ros_lib ${OpenCV_LIBS} ${catkin_LIBRARIES} math_tools_lib yaml-cpp)
 target_link_libraries(landmark_ros_lib ${OpenCV_LIBS} ${catkin_LIBRARIES} math_tools_lib yaml-cpp)
+
+add_library(pnp_cooperation_ros_lib src/pnp_cooperation_node_ros.cpp)
+target_link_libraries(pnp_cooperation_ros_lib ${OpenCV_LIBS} ${catkin_LIBRARIES} math_tools_lib)
 # ==================== core library ==================== #
 
 # ==================== Executable Program ==================== #
 
 ## The main executable program to detect target and estimate it pose
-add_executable(multi_camera_cooperation_ros src/multi_camera_cooperation_ros_test.cpp)
-target_link_libraries(multi_camera_cooperation_ros pnp_ros_lib landmark_ros_lib ${catkin_LIBRARIES} ${OpenCV_LIBS})
+add_executable(single_cam_process_ros src/single_cam_process.cpp)
+target_link_libraries(single_cam_process_ros pnp_ros_lib landmark_ros_lib ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
 ## The executable program to broadcast base2servogroup transformation
-add_executable(base2servogp_broadcaster src/base2servogp_broadcaster.cpp)
-target_link_libraries(base2servogp_broadcaster ${catkin_LIBRARIES})
+add_executable(base2servogp_broadcaster_ros src/base2servogp_broadcaster.cpp)
+target_link_libraries(base2servogp_broadcaster_ros ${catkin_LIBRARIES})
 
+## The executable program to fuse the pnp estimatetion from multi-cameras
+add_executable(multi_cam_cooperation_ros src/multi_cam_cooperation.cpp)
+target_link_libraries(multi_cam_cooperation_ros pnp_cooperation_ros_lib ${catkin_LIBRARIES} ${OpenCV_LIBS})

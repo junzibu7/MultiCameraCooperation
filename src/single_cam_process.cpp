@@ -12,14 +12,11 @@ LandmarkExtractionNodeROS landmark_manager;
 
 int main(int argc, char **argv)
 {
-    ROS_INFO("Initializing MultiCameraCooperation ...");
-    ros::init(argc, argv, "multi_camera_cooperation_ros");
+    ros::init(argc, argv, "single_cam_process_ros");
     ros::NodeHandle nh("~");
 //    ros::NodeHandle nh;
     ros::Rate rate(30);
     tf::TransformBroadcaster* br = new(tf::TransformBroadcaster);
-
-    std::cout << "Init MultiCameraCooperation" << std::endl;
     
     landmark_manager.init(nh);
     pnp_manager.init(nh, br);

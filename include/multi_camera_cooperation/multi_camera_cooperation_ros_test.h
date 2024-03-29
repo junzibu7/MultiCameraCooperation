@@ -1,6 +1,0 @@
-#ifndef MULTI_CAMERA_COOPERATION_ROS_TEST_H
-#define MULTI_CAMERA_COOPERATION_ROS_TEST_H
-
-#include <multi_camera_cooperation/pnp_target_node_ros.h>
-
-#endif //MULTI_CAMERA_COOPERATION_ROS_TEST_H
