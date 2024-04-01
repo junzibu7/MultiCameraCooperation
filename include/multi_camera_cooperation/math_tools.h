@@ -20,6 +20,7 @@
 
 #include <Eigen/Eigen>
 #include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -34,7 +35,7 @@
 
 using namespace std;
 
-const int pi = 3.1415926;
+const double pi = 3.1415926;
 
 geometry_msgs::Quaternion euler2quaternion(float roll, float pitch, float yaw);
 Eigen::Quaterniond euler2quaternion_eigen(float roll, float pitch, float yaw);
@@ -50,5 +51,9 @@ Eigen::Vector2d subtractPoints(cv::Point2f& point1, cv::Point2f& point2);
 //Eigen2TF
 tf::Quaternion EigenQuaterniondToTFQuaternion(Eigen::Quaterniond q_EIGEN) ;
 tf::Vector3 EigenVector3dToTFVector3(Eigen::Vector3d t);
+
+//TF2Eigen
+Eigen::Quaterniond TFQuaternionToEigenQuaterniond(tf::Quaternion q_TF);
+Eigen::Vector3d TFVector3ToEigenVector3d(tf::Vector3 t);
 
 #endif

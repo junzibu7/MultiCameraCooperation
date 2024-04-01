@@ -64,11 +64,12 @@ void PnPTargetNodeROS::init(ros::NodeHandle &nh, tf::TransformBroadcaster* br){
 
     
 //============================= Initialize ROS topic =============================//
-    sub_marker_pixel = nh.subscribe("/camA/multi_camera_cooperation_ros/ir_mono/marker_pixel", 1, &PnPTargetNodeROS::ir_marker_pixel_cb, this);
+    sub_marker_pixel = nh.subscribe("/" + cam + "/single_cam_process_ros/ir_mono/marker_pixel", 1, &PnPTargetNodeROS::ir_marker_pixel_cb, this);
     sub_drone_vio_pose = nh.subscribe("/vio", 1, &PnPTargetNodeROS::drone_vio_pose_cb, this);
     sub_drone_vicon_pose = nh.subscribe("/mocap", 1, &PnPTargetNodeROS::drone_vicon_pose_cb, this);
     sub_drone_imu = nh.subscribe("/imu", 1, &PnPTargetNodeROS::drone_imu_cb, this);
     
+    pub_cam_to_estimation = nh.advertise<geometry_msgs::TransformStamped>("/" + cam + "/single_cam_process_ros/ir_mono/T_cam_to_estimation", 1);
     pub_drone_vicon_pose = nh.advertise<geometry_msgs::PoseStamped>("vicon/pose_correct", 1);
     // pub_target_pose_from_img = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_from_img", 1);
     // pub_target_pose_from_img_filter = nh.advertise<geometry_msgs::PoseStamped>("pnp_trt/topic_target_pose_from_img_filter", 1);
@@ -169,37 +170,42 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     T_image_to_markers.block<3, 1>(0, 3) = target_pos_in_img;
 
     //先从相机坐标系到图像坐标系，然后从图像坐标系到标记点坐标系，再由标记点坐标系到飞机坐标系
-    T_camera_to_drone = T_camera_to_image * T_image_to_markers * T_IRLandmark_to_drone;
+    T_cam_to_estimation = T_camera_to_image * T_image_to_markers * T_IRLandmark_to_drone;
     // T_body_to_drone.block<3,1>(0,3) = T_body_to_drone.block<3,1>(0,3) + T_markers_to_drone.block<3,1>(0,3); //marker在drone1坐标系下的位置
-    R_camera_to_drone = T_camera_to_drone.block<3, 3>(0, 0);
+    R_cam_to_estimation = T_cam_to_estimation.block<3, 3>(0, 0);
 
-    t_camera_to_drone = EigenVector3dToTFVector3(T_camera_to_drone.block<3, 1>(0, 3));
-    q_camera_to_drone = EigenQuaterniondToTFQuaternion(Eigen::Quaterniond(R_camera_to_drone));
+    t_cam_to_estimation = EigenVector3dToTFVector3(T_cam_to_estimation.block<3, 1>(0, 3));
+    q_cam_to_estimation = EigenQuaterniondToTFQuaternion(Eigen::Quaterniond(R_cam_to_estimation));
     
 
 //=====================================写入文件进一步分析======================================//
     
-    t_camera_to_drone_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/t_body_to_drone_camC.txt",ios::out|ios::app);
+    t_cam_to_estimation_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/t_body_to_drone_camC.txt",ios::out|ios::app);
 	//输入你想写入的内容 
-	t_camera_to_drone_file<<t_camera_to_drone[0]<<" "<<t_camera_to_drone[1]<<" "<<t_camera_to_drone[2]<<endl;
-	t_camera_to_drone_file.close();
+	t_cam_to_estimation_file<<t_cam_to_estimation[0]<<" "<<t_cam_to_estimation[1]<<" "<<t_cam_to_estimation[2]<<endl;
+	t_cam_to_estimation_file.close();
 
-    q_camera_to_drone_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/q_camera_to_drone_camC.txt",ios::out|ios::app);
+    q_cam_to_estimation_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/q_cam_to_estimation_camC.txt",ios::out|ios::app);
 	//输入你想写入的内容 
-	q_camera_to_drone_file<<q_camera_to_drone.w()<<" "<<q_camera_to_drone.x()<<" "<<q_camera_to_drone.y()<<" "<<q_camera_to_drone.z()<<endl;
-	q_camera_to_drone_file.close();
+	q_cam_to_estimation_file<<q_cam_to_estimation.w()<<" "<<q_cam_to_estimation.x()<<" "<<q_cam_to_estimation.y()<<" "<<q_cam_to_estimation.z()<<endl;
+	q_cam_to_estimation_file.close();
     
 //=====================================写入文件进一步分析======================================//
 
-    printf(GREEN "[PNP] t_camera_to_drone = %.3f, %.3f, %.3f | q_camera_to_drone (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
-         t_camera_to_drone.x(), t_camera_to_drone.y(), t_camera_to_drone.z(),
-         q_camera_to_drone.getW(), q_camera_to_drone.getX(), q_camera_to_drone.getY(), q_camera_to_drone.getZ());
-    
+    printf(GREEN "[PNP] t_cam_to_estimation = %.3f, %.3f, %.3f | q_cam_to_estimation (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
+         t_cam_to_estimation.x(), t_cam_to_estimation.y(), t_cam_to_estimation.z(),
+         q_cam_to_estimation.getW(), q_cam_to_estimation.getX(), q_cam_to_estimation.getY(), q_cam_to_estimation.getZ());
+ 
     if(pnpGoodFlag){
-        camera_to_drone.setOrigin(t_camera_to_drone);
-		camera_to_drone.setRotation(q_camera_to_drone);
-
-        br0->sendTransform(tf::StampedTransform(camera_to_drone, ros::Time::now(), cam, "Estimationfrom"+cam));
+        cam_to_estimation.setOrigin(t_cam_to_estimation);
+        
+		cam_to_estimation.setRotation(q_cam_to_estimation);
+        cam_to_estimation.stamp_ = ros::Time::now();
+        cam_to_estimation.frame_id_ = cam;
+        cam_to_estimation.child_frame_id_ = "Estimationfrom"+cam;
+        tf::transformStampedTFToMsg(cam_to_estimation, msg_T_cam_to_estimation);
+        pub_cam_to_estimation.publish(msg_T_cam_to_estimation);
+        br0->sendTransform(msg_T_cam_to_estimation);
     }
 
 
@@ -301,7 +307,7 @@ bool PnPTargetNodeROS::T_shape_identify(vector<cv::Point2f> &pointsVector){
 }
 
 bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
-    printf("pnp_process function begin!");
+    ROS_INFO("pnp_process start!");
 
 #ifdef USE_4_Point
     if(pointsVector.size() == landmark_num){

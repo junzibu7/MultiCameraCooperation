@@ -75,15 +75,21 @@ public:
 
     ros::Publisher pub_drone_vicon_pose;
     ros::Publisher pub_relative_pose_mocap;
+    ros::Publisher pub_cam_to_estimation;
+
     std::string marker_pixel_topic;
     ros::Time stamp;
     // cv_bridge::CvImagePtr cv_ptr_compressed_ir;
     // cv_bridge::CvImageConstPtr cv_ptr_raw_ir;
 //==================== ros ====================//
 
+//==================== test ===================//
+    double sety = 0.0;
+//==================== test ===================//
+
 //==================== tf ====================//
     tf::TransformBroadcaster* br0 = nullptr;
-    tf::Transform camera_to_drone;
+    tf::StampedTransform cam_to_estimation;
 //==================== tf ====================//
 
     ///------------- ir_img process -------------///
@@ -156,15 +162,16 @@ public:
     Eigen::Matrix4d T_IRLandmark_to_drone = Eigen::Matrix4d::Identity(); //目标飞机drone在landmark目标坐标系下的姿态
     Eigen::Matrix4d T_image_to_markers = Eigen::Matrix4d::Identity(); //landmark目标在camera坐标系下的姿态
     Eigen::Matrix4d T_camera_to_image = Eigen::Matrix4d::Identity();
-    Eigen::Matrix4d T_camera_to_drone = Eigen::Matrix4d::Identity(); 
+    Eigen::Matrix4d T_cam_to_estimation = Eigen::Matrix4d::Identity(); 
     Eigen::Matrix4d T_body_to_drone = Eigen::Matrix4d::Identity(); //drone在body坐标系下的姿态
     Eigen::Matrix3d R_body_to_drone = Eigen::Matrix3d::Identity(); 
-    Eigen::Matrix3d R_camera_to_drone = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d R_cam_to_estimation = Eigen::Matrix3d::Identity();
     Eigen::Vector3d t_body_to_drone = Eigen::Vector3d::Zero();
-    tf::Vector3 t_camera_to_drone = tf::Vector3();
+    tf::Vector3 t_cam_to_estimation = tf::Vector3();
     tf::Quaternion q_body_to_drone = tf::Quaternion();
-    tf::Quaternion q_camera_to_drone = tf::Quaternion();
+    tf::Quaternion q_cam_to_estimation = tf::Quaternion();
     geometry_msgs::PoseStamped msg_target_pose_from_img;
+    geometry_msgs::TransformStamped msg_T_cam_to_estimation;
 
     ///------------ Complementary filter for calculate position velocity state ----------///
     // std::shared_ptr<ComplementaryFilter> filter;
@@ -223,8 +230,8 @@ public:
     
 };
 
-fstream t_camera_to_drone_file;
-fstream q_camera_to_drone_file;
+fstream t_cam_to_estimation_file;
+fstream q_cam_to_estimation_file;
 
 
 #endif //PNP_TARGET_NODE_ROS_H

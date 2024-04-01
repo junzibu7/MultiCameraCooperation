@@ -21,8 +21,6 @@ int main(int argc, char **argv)
     tf::TransformListener* lrC = new(tf::TransformListener);
     tf::TransformListener* lrD = new(tf::TransformListener);
 
-    std::cout << "Init MultiCameraCooperation" << std::endl;
-
     pnp_coop_manager.init(nh, br, lrA, lrB, lrC, lrD);
 
     while (ros::ok())

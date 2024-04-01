@@ -44,7 +44,7 @@ void LandmarkExtractionNodeROS::init(ros::NodeHandle &nh){
 
 //============================= ir_img receive =============================//
 void LandmarkExtractionNodeROS::ir_raw_img_cb(const sensor_msgs::Image::ConstPtr &msg){
-//  ROS_INFO("ir_img_cb");
+    ROS_INFO("ir_img_cb");
 //  std::cout << "ir timestamp = " << msg->header.stamp << std::endl;
     stamp = msg->header.stamp;
     cv_bridge::CvImageConstPtr cv_ptr_raw_ir;
@@ -63,7 +63,7 @@ void LandmarkExtractionNodeROS::ir_raw_img_cb(const sensor_msgs::Image::ConstPtr
 }
 
 void LandmarkExtractionNodeROS::ir_compressed_img_cb(const sensor_msgs::CompressedImage::ConstPtr &msg){
-//    ROS_INFO("ir_img_cb");
+    ROS_INFO("ir_img_cb");
 //    std::cout << "ir timestamp = " << msg->header.stamp << std::endl;
     stamp = msg->header.stamp;
     cv_ptr_compressed_ir = cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::MONO8);

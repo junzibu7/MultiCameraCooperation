@@ -3,6 +3,7 @@
     <group ns="camD">
     <node pkg="multi_camera_cooperation" type="single_cam_process_ros" name="single_cam_process_ros" output="screen" required="true">
         <param name="cam" type="string" value="camD" />
+        <param name="landmark_num" type="int" value="4" />
         <remap from="/ir_mono_camD" to="/camD/infra1/image_rect_raw/compressed"/>
         <remap from="/vio" to="/kun0/mavros/local_position/pose"/>
         <remap from="/imu" to="/kun0/imu/data"/>

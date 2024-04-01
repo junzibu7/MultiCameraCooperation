@@ -129,11 +129,39 @@ Eigen::Vector2d subtractPoints(cv::Point2f& point1, cv::Point2f& point2) {
 
 
 tf::Quaternion EigenQuaterniondToTFQuaternion(Eigen::Quaterniond q_EIGEN) 
-{   
-    return tf::Quaternion(q_EIGEN.w(), q_EIGEN.x(), q_EIGEN.y(), q_EIGEN.z());
+{
+    tf::Quaternion temp;
+    temp.setX(q_EIGEN.x());
+    temp.setY(q_EIGEN.y());
+    temp.setZ(q_EIGEN.z());
+    temp.setW(q_EIGEN.w());
+    return temp;
 } 
 
 tf::Vector3 EigenVector3dToTFVector3(Eigen::Vector3d t)
 {
-    return tf::Vector3(t[0], t[1], t[2]);
+    tf::Vector3 temp;
+    temp[0] = t[0];
+    temp[1] = t[1];
+    temp[2] = t[2];
+    return temp;
+}
+
+Eigen::Quaterniond TFQuaternionToEigenQuaterniond(tf::Quaternion q)
+{
+    Eigen::Quaterniond temp;
+    temp.x() = q.x();
+    temp.y() = q.y();
+    temp.z() = q.z();
+    temp.w() = q.w();
+    return temp;
+}
+
+Eigen::Vector3d TFVector3ToEigenVector3d(tf::Vector3 t)
+{
+    Eigen::Vector3d temp;
+    temp[0] = t[0];
+    temp[1] = t[1];
+    temp[2] = t[2];
+    return temp;
 }

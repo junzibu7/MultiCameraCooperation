@@ -66,47 +66,136 @@ class PNPCooperationNodeROS;
 class PNPCooperationNodeROS
 {
 public:
-//==================== tf  ====================//
+    //======================== tf  =========================//
     tf::TransformBroadcaster* br_base_to_coopestimation = nullptr;
-    tf::Transform base_to_coopestimation;
-    tf::TransformListener* lr_base_to_estimationfromcamA = nullptr;
-    tf::StampedTransform base_to_estimationfromcamA;
-    tf::TransformListener* lr_base_to_estimationfromcamB = nullptr;
-    tf::StampedTransform base_to_estimationfromcamB;
-    tf::TransformListener* lr_base_to_estimationfromcamC = nullptr;
-    tf::StampedTransform base_to_estimationfromcamC;
-    tf::TransformListener* lr_base_to_estimationfromcamD = nullptr;
-    tf::StampedTransform base_to_estimationfromcamD;
-//==================== tf ====================//
+    tf::StampedTransform base_to_coopestimation;
+    tf::StampedTransform base_to_coopestimation_buf;
+    tf::TransformListener* lr_base_to_camA = nullptr;
+    tf::StampedTransform base_to_camA;
+    tf::TransformListener* lr_base_to_camB = nullptr;
+    tf::StampedTransform base_to_camB;
+    tf::TransformListener* lr_base_to_camC = nullptr;
+    tf::StampedTransform base_to_camC;
+    tf::TransformListener* lr_base_to_camD = nullptr;
+    tf::StampedTransform base_to_camD;
+    //======================== tf =========================//
 
-//==================== estimation process ====================//
+    //==================== estimation process ====================//
     tf::Vector3 t_coopestimation;
     tf::Quaternion q_coopestimation;
-//==================== estimation process ====================//
+    int listenercount = 0;
+    bool camAGoodFlag = false;
+    bool camBGoodFlag = false;
+    bool camCGoodFlag = false;
+    bool camDGoodFlag = false;
+    //==================== estimation process ====================//
 
-///------------- function declarations -------------///
+    //==================== transform ====================//
+    Eigen::Matrix4Xd T_base_to_coopestimation = Eigen::Matrix4d::Identity();
+
+
+    Eigen::Matrix3d R_base_coopestimation = Eigen::Matrix3d::Identity();
+    Eigen::Vector3d t_base_coopestimation = Eigen::Vector3d::Zero();
+    Eigen::Quaterniond q_base_coopestimation = Eigen::Quaterniond::Identity();
+
+    Eigen::Matrix4Xd T_camA_to_estimation = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4Xd T_camB_to_estimation = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4Xd T_camC_to_estimation = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4Xd T_camD_to_estimation = Eigen::Matrix4d::Identity();
+    Eigen::Matrix3d R_camA_to_estimation = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d R_camB_to_estimation = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d R_camC_to_estimation = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d R_camD_to_estimation = Eigen::Matrix3d::Identity();
+    Eigen::Vector3d t_camA_to_estimation = Eigen::Vector3d::Zero();
+    Eigen::Vector3d t_camB_to_estimation = Eigen::Vector3d::Zero();
+    Eigen::Vector3d t_camC_to_estimation = Eigen::Vector3d::Zero();
+    Eigen::Vector3d t_camD_to_estimation = Eigen::Vector3d::Zero();
+    Eigen::Quaterniond q_camA_to_estimation = Eigen::Quaterniond::Identity();
+    Eigen::Quaterniond q_camB_to_estimation = Eigen::Quaterniond::Identity();
+    Eigen::Quaterniond q_camC_to_estimation = Eigen::Quaterniond::Identity();
+    Eigen::Quaterniond q_camD_to_estimation = Eigen::Quaterniond::Identity();
+    ros::Time Time_camA_to_estimation;
+    ros::Time Time_camB_to_estimation;
+    ros::Time Time_camC_to_estimation;
+    ros::Time Time_camD_to_estimation;
+
+    Eigen::Matrix4Xd T_base_to_estimationfromcamA = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4Xd T_base_to_estimationfromcamB = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4Xd T_base_to_estimationfromcamC = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4Xd T_base_to_estimationfromcamD = Eigen::Matrix4d::Identity();
+    Eigen::Matrix3d R_base_to_estimationfromcamA = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d R_base_to_estimationfromcamB = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d R_base_to_estimationfromcamC = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d R_base_to_estimationfromcamD = Eigen::Matrix3d::Identity();
+    Eigen::Vector3d t_base_to_estimationfromcamA = Eigen::Vector3d::Zero();
+    Eigen::Vector3d t_base_to_estimationfromcamB = Eigen::Vector3d::Zero();
+    Eigen::Vector3d t_base_to_estimationfromcamC = Eigen::Vector3d::Zero();
+    Eigen::Vector3d t_base_to_estimationfromcamD = Eigen::Vector3d::Zero();
+    Eigen::Quaterniond q_base_to_estimationfromcamA = Eigen::Quaterniond::Identity();
+    Eigen::Quaterniond q_base_to_estimationfromcamB = Eigen::Quaterniond::Identity();
+    Eigen::Quaterniond q_base_to_estimationfromcamC = Eigen::Quaterniond::Identity();
+    Eigen::Quaterniond q_base_to_estimationfromcamD = Eigen::Quaterniond::Identity();
+
+    Eigen::Matrix4Xd T_base_to_camA = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4Xd T_base_to_camB = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4Xd T_base_to_camC = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4Xd T_base_to_camD = Eigen::Matrix4d::Identity();
+    Eigen::Matrix3d R_base_to_camA = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d R_base_to_camB = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d R_base_to_camC = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d R_base_to_camD = Eigen::Matrix3d::Identity();
+    Eigen::Vector3d t_base_to_camA = Eigen::Vector3d::Zero();
+    Eigen::Vector3d t_base_to_camB = Eigen::Vector3d::Zero();
+    Eigen::Vector3d t_base_to_camC = Eigen::Vector3d::Zero();
+    Eigen::Vector3d t_base_to_camD = Eigen::Vector3d::Zero();
+    Eigen::Quaterniond q_base_to_camA = Eigen::Quaterniond::Identity();
+    Eigen::Quaterniond q_base_to_camB = Eigen::Quaterniond::Identity();
+    Eigen::Quaterniond q_base_to_camC = Eigen::Quaterniond::Identity();
+    Eigen::Quaterniond q_base_to_camD = Eigen::Quaterniond::Identity();
+    //==================== transform ====================//
+
+    //==================== publish & subscribe ====================//
+    ros::Publisher pub_base_to_coopestimation;
+    ros::Subscriber sub_camA_to_estimation;
+    ros::Subscriber sub_camB_to_estimation;
+    ros::Subscriber sub_camC_to_estimation;
+    ros::Subscriber sub_camD_to_estimation;
+
+    //===================== message ==============================//
+    geometry_msgs::TransformStamped EstimationStamped;
+    //===================== message ==============================//
+
+    ///------------- function declarations -------------///
     PNPCooperationNodeROS();
 
-/**
- * @brief Load config files, initialize the ros wrapper and related
- * @param nh
- * @param br
- * @param lrA
- * @param lrB
- * @param lrC
- * @param lrD
- */
-    void init(ros::NodeHandle &nh, tf::TransformBroadcaster* br, tf::TransformListener* lrA, tf::TransformListener* lrB, tf::TransformListener* lrC, tf::TransformListener* lrD);
- 
-/**
- * @brief read camera estimation from camA, camB, camC, camD
- */
-    void cam_estimation_listener();
+    /**
+     * @brief Load config files, initialize the ros wrapper and related
+     * @param nh
+     * @param br
+     * @param lrA
+     * @param lrB
+     * @param lrC
+     * @param lrD
+     */
+    void init(ros::NodeHandle &nh, tf::TransformBroadcaster *br, tf::TransformListener *lrA, tf::TransformListener *lrB, tf::TransformListener *lrC, tf::TransformListener *lrD);
+
+    /**
+     * @brief camera estimation listen from camA, camB, camC, camD
+     */
+    void T_base_to_EstimationfromcamA_callback(const geometry_msgs::TransformStamped &base_to_camA);
+    void T_base_to_EstimationfromcamB_callback(const geometry_msgs::TransformStamped &base_to_camB);
+    void T_base_to_EstimationfromcamC_callback(const geometry_msgs::TransformStamped &base_to_camC);
+    void T_base_to_EstimationfromcamD_callback(const geometry_msgs::TransformStamped &base_to_camD);
+
+    /**
+     * @brief camera estimation callback from base
+     */
+    void T_base_to_CoopEstimation();
 
 /**
 * @brief broadcast the camera estimation to the base
  */
-    void broadcast_base_to_coopestimation();
+    void broadcast_base_to_coopestimation(int listenercount);
 
 /**
 * @brief fuse the camera estimation from camA, camB, camC, camD
