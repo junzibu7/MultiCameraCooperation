@@ -17,7 +17,7 @@
 IRLandmark由四项构成：
 - layout_name:红外标记的命名
 - number:红外标记点的数量
-- layout:红外标记点的布置方案。选取一个红外标记坐标系（一般选取其中一个红外标记点作为坐标系原点），layout的第i行填入第i个红外标记点坐标系下的坐标
+- layout:红外标记点的布置方案。选取一个红外标记坐标系（一般选取其中一个红外标记点作为坐标系原点），并在layout的第i行中填入第i个红外标记点的坐标
 - T_drone_IRLandmark:红外标记坐标系相对于无人机坐标系的变换矩阵
 
 注意对yaml文件进行项的增加或减少时，需要对uav_config/include/uav_config/read_config_drone.h进行相应的修改。
