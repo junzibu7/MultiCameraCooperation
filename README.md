@@ -8,7 +8,7 @@
 
 ### Step1
 
-准备飞机的配置文件，下载https://gitee.com/hezijia/uav_config.git处代码，并按照其要求进行配置。
+准备飞机的配置文件，下载 https://gitee.com/hezijia/uav_config.git 处代码，并按照其要求进行配置。
 
 本项目中的配置文件为uav_config/extrinsic_intrinsic/body_four_camera.yaml。
 
