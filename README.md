@@ -27,3 +27,20 @@ IRLandmark由四项构成：
 
 对CMakeLists.txt进行配置。
 
+注意更改包括opencv、cv_bridge、uav_config在内的文件路径，若下载到系统默认位置则可以把对应的系统路径设置注释掉。
+
+### Step3
+
+开始编译，一般可以编译通过，有些文件可能在第一次编译的时候才生成，需要编译两次才能成功。
+
+如果还有问题请联系我。
+
+### Step4
+
+下面介绍功能包的主要文件：
+- base2servogp_broadcaster.cpp:记录base坐标系到servogroupxx坐标系的坐标变换，并tf树的形式广播出去。
+- landmark_detect.cpp:捕获相机的图像，识别红外标记在图像上的坐标，并发布话题"ir_mono/marker_pixel"。
+- pnp_cooperation_node_ros.cpp:监听四组相机对无人机位姿的估计值，将其融合得到无人机的最终位姿。
+- pnp_target_node_ros.cpp:订阅"ir_mono/marker_pixel"话题，结合红外标记在图像上的坐标和相机的内外参，使用pnp算法解算无人机的位置和姿态。
+
+pnp_target_node_ros.cpp 文件的主要函数为 `landmark_pose_solve()`,其将得到的红外标记按照配置进行排序后进行pnp解算，得到无人机的位姿后存入`T_cam_to_estimation`中并以tf树的形式广播出去。

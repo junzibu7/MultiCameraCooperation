@@ -179,7 +179,6 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     
 
 //=====================================写入文件进一步分析======================================//
-    
     t_cam_to_estimation_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/t_body_to_drone_camC.txt",ios::out|ios::app);
 	//输入你想写入的内容 
 	t_cam_to_estimation_file<<t_cam_to_estimation[0]<<" "<<t_cam_to_estimation[1]<<" "<<t_cam_to_estimation[2]<<endl;
@@ -189,7 +188,6 @@ void PnPTargetNodeROS::landmark_pose_solve(){
 	//输入你想写入的内容 
 	q_cam_to_estimation_file<<q_cam_to_estimation.w()<<" "<<q_cam_to_estimation.x()<<" "<<q_cam_to_estimation.y()<<" "<<q_cam_to_estimation.z()<<endl;
 	q_cam_to_estimation_file.close();
-    
 //=====================================写入文件进一步分析======================================//
 
     printf(GREEN "[PNP] t_cam_to_estimation = %.3f, %.3f, %.3f | q_cam_to_estimation (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
