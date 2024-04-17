@@ -63,6 +63,7 @@ catkin_package(
 include_directories(
   ../../devel/include
   include
+  include/Filter
   ${catkin_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${uav_config_INCLUDE_DIRS}
@@ -74,6 +75,11 @@ MESSAGE('My OpenCV_INCLUDE_DIRS:'${OpenCV_INCLUDE_DIRS})
 
 # ==================== core library ==================== #
 add_library(math_tools_lib src/math_tools.cpp)
+add_library(ekf_lib src/Filter/extend_kalman.cpp)
+add_library(kf_lib src/Filter/kalman_filter.cpp)
+add_library(lp_lib src/Filter/lowpass_filter.cpp)
+target_link_libraries(ekf_lib kf_lib lp_lib math_tools_lib)
+
 
 add_library(pnp_ros_lib src/pnp_target_node_ros.cpp)
 add_library(landmark_ros_lib src/landmark_extraction_node_ros.cpp)
