@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     while (ros::ok())
     {
         base_to_servogroup12.setOrigin(tf::Vector3(0.0, 0.0, 0.0));//rightback
-    	q.setRPY(0, 0, atan(0.95/0.74));
+    	q.setRPY(0, 0, atan(0.45/0.70));
 		base_to_servogroup12.setRotation(q);
         base_to_servogroup12.stamp_ = ros::Time::now();
         base_to_servogroup12.frame_id_ = "base";
@@ -68,7 +68,7 @@ int main(int argc, char **argv)
 
 
         base_to_servogroup56.setOrigin(tf::Vector3(-0.320 + 0.263, 0.742 + 0.680, 0.0));//leftback
-    	q.setRPY(0, 0, -atan(0.95/0.74));
+    	q.setRPY(0, 0, -atan(0.45/0.70));
 		base_to_servogroup56.setRotation(q);
         base_to_servogroup56.stamp_ = ros::Time::now();
         base_to_servogroup56.frame_id_ = "base";
