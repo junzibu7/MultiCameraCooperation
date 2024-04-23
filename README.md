@@ -44,3 +44,4 @@ IRLandmark由四项构成：
 - pnp_target_node_ros.cpp:订阅"ir_mono/marker_pixel"话题，结合红外标记在图像上的坐标和相机的内外参，使用pnp算法解算无人机的位置和姿态。
 
 pnp_target_node_ros.cpp 文件的主要函数为 `landmark_pose_solve()`,其将得到的红外标记按照配置进行排序后进行pnp解算，得到无人机的位姿后存入`T_cam_to_estimation`中并以tf树的形式广播出去。
+# multi_camera_cooperation

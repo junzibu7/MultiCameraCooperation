@@ -5,11 +5,11 @@ add_compile_options(-std=c++14 -O3 -g)
 
 set(CMAKE_BUILD_TYPE "Release")
 
-#set(cv_bridge_DIR ~/catkin_make/src/cv_bridge/cmake) #nvidia
-#set(uav_config_DIR /home/nvidia/mulcam_ws/src/uav_config/build)  #nvidia
-set(cv_bridge_DIR /home/hezijia/tool_ws/src/vision_opencv/cv_bridge/cmake)  #laptop
-set(uav_config_DIR /home/hezijia/catkin_ws/src/uav_config/build/catkin_generated/installspace) #laptop
-set(OpenCV_DIR /usr/local/share/opencv4) #laptop
+# #set(cv_bridge_DIR ~/catkin_make/src/cv_bridge/cmake) #nvidia
+# #set(uav_config_DIR /home/nvidia/mulcam_ws/src/uav_config/build)  #nvidia
+# set(cv_bridge_DIR /home/hezijia/tool_ws/src/vision_opencv/cv_bridge/cmake)  #laptop
+# set(uav_config_DIR /home/hezijia/catkin_ws/src/uav_config/build/catkin_generated/installspace) #laptop
+# set(OpenCV_DIR /usr/local/share/opencv4) #laptop
 
 find_package(OpenCV 4.2.0 REQUIRED)
 
@@ -92,7 +92,7 @@ target_link_libraries(pnp_cooperation_ros_lib ${OpenCV_LIBS} ${catkin_LIBRARIES}
 
 # ==================== Executable Program ==================== #
 
-## The main executable program to detect target and estimate it pose
+## The main executable program to detect target and estimate its pose
 add_executable(single_cam_process_ros src/single_cam_process.cpp)
 target_link_libraries(single_cam_process_ros pnp_ros_lib landmark_ros_lib ${catkin_LIBRARIES} ${OpenCV_LIBS})
 

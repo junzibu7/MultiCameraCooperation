@@ -161,6 +161,7 @@ public:
     //T_A_to_B is from A transform to B, also means B pose in A
     Eigen::Matrix4d T_IRLandmark_to_drone = Eigen::Matrix4d::Identity(); //目标飞机drone在landmark目标坐标系下的姿态
     Eigen::Matrix4d T_image_to_markers = Eigen::Matrix4d::Identity(); //landmark目标在camera坐标系下的姿态
+    deque<Eigen::Matrix4d> window_T_image_to_markers; // 滑窗实现“低通”滤波
     Eigen::Matrix4d T_camera_to_image = Eigen::Matrix4d::Identity();
     Eigen::Matrix4d T_cam_to_estimation = Eigen::Matrix4d::Identity(); 
     Eigen::Matrix4d T_body_to_drone = Eigen::Matrix4d::Identity(); //drone在body坐标系下的姿态

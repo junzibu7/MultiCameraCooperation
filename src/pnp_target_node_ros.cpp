@@ -169,10 +169,50 @@ void PnPTargetNodeROS::landmark_pose_solve(){
 #endif
     T_image_to_markers.block<3, 1>(0, 3) = target_pos_in_img;
 
+    // // 对于T_image_to_markers进行离群值滤除
+    // if(pnpGoodFlag) {
+    //     if(window_T_image_to_markers.empty()) {
+    //         window_T_image_to_markers.push_back(T_image_to_markers);
+    //     }
+    //     else {
+    //         if(window_T_image_to_markers.size()==5) {
+    //             window_T_image_to_markers.pop_front();
+    //         }
+    //         Eigen::Quaterniond avg_quat(0,0,0,0);
+    //         Eigen::Vector3d avg_trans(0,0,0);
+    //         for(deque<Eigen::Matrix4d>::iterator it = window_T_image_to_markers.begin(); it!=window_T_image_to_markers.end(); it++) {
+    //             Eigen::Matrix3d rotation_matrix = (*it).block<3, 3>(0, 0);
+    //             Eigen::Quaterniond quat(rotation_matrix);
+    //             Eigen::Vector3d translation = (*it).block<3, 1>(0, 3);
+    //             avg_quat = avg_quat.slerp(1.0 / window_T_image_to_markers.size(), quat);
+    //             avg_trans += translation / window_T_image_to_markers.size();
+    //         }
+    //         if((T_image_to_markers.block<3, 1>(0, 3)-avg_trans).norm() >= 0.001) {
+    //             Eigen::Matrix3d avg_rot(avg_quat);
+    //             T_image_to_markers.block<3, 3>(0, 0) = avg_rot;
+    //             T_image_to_markers.block<3, 1>(0, 3) = avg_trans;
+    //             // T_image_to_markers(0,3) = 0;
+    //             // T_image_to_markers(1,3) = 0;
+    //             // T_image_to_markers(2,3) = 0;
+    //         }
+    //         window_T_image_to_markers.push_back(T_image_to_markers);
+    //     }
+    // }
+    // else {
+    //     while(!window_T_image_to_markers.empty()) {
+    //         window_T_image_to_markers.pop_front();
+    //     }
+    // }
+
     //先从相机坐标系到图像坐标系，然后从图像坐标系到标记点坐标系，再由标记点坐标系到飞机坐标系
     T_cam_to_estimation = T_camera_to_image * T_image_to_markers * T_IRLandmark_to_drone;
     // T_body_to_drone.block<3,1>(0,3) = T_body_to_drone.block<3,1>(0,3) + T_markers_to_drone.block<3,1>(0,3); //marker在drone1坐标系下的位置
     R_cam_to_estimation = T_cam_to_estimation.block<3, 3>(0, 0);
+
+    if((T_cam_to_estimation.block<3, 1>(0, 3)).norm() > 3.0) {
+        pnpGoodFlag = false;
+        marker_pixels.clear();
+    }
 
     t_cam_to_estimation = EigenVector3dToTFVector3(T_cam_to_estimation.block<3, 1>(0, 3));
     q_cam_to_estimation = EigenQuaterniondToTFQuaternion(Eigen::Quaterniond(R_cam_to_estimation));
@@ -193,7 +233,8 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     printf(GREEN "[PNP] t_cam_to_estimation = %.3f, %.3f, %.3f | q_cam_to_estimation (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
          t_cam_to_estimation.x(), t_cam_to_estimation.y(), t_cam_to_estimation.z(),
          q_cam_to_estimation.getW(), q_cam_to_estimation.getX(), q_cam_to_estimation.getY(), q_cam_to_estimation.getZ());
- 
+
+    // 发布单台相机PNP估计结果T_cam_to_estimation
     if(pnpGoodFlag){
         cam_to_estimation.setOrigin(t_cam_to_estimation);
         
