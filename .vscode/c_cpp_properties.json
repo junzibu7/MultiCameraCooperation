@@ -1,0 +1,24 @@
+{
+    "configurations": [
+      {
+        "browse": {
+          "databaseFilename": "${default}",
+          "limitSymbolsToIncludedHeaders": false
+        },
+        "includePath": [
+          "${workspaceFolder}/**",
+          "/usr/include/**",
+          "/opt/ros/noetic/include/**",
+          "/home/joy/cam_ws/devel/include/**",
+          "/home/joy/cam_ws/src/multi_camera_cooperation/include/**",
+          "/home/joy/cam_ws/src/uav_config/include"
+        ],
+        "name": "ROS",
+        "intelliSenseMode": "gcc-x64",
+        "compilerPath": "/usr/bin/gcc",
+        "cStandard": "gnu11",
+        "cppStandard": "c++14"
+      }
+    ],
+    "version": 4
+  }

@@ -1,0 +1,2 @@
+#!/bin/bash
+roslaunch multi_camera_cooperation camC_pnp_target_node_ros_test.launch

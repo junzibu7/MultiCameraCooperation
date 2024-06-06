@@ -1,0 +1,31 @@
+<launch>
+    <!--work in main thread, if it is loaded before image_show, came_read will block the launch of image_show-->
+    <group ns="camD">
+    <node pkg="multi_camera_cooperation" type="single_cam_process_ros" name="single_cam_process_ros" output="screen" required="true">
+        <param name="cam" type="string" value="camD" />
+        <param name="landmark_num" type="int" value="4" />
+        <remap from="/ir_mono_camD" to="/camD/infra1/image_rect_raw/compressed"/>
+        <remap from="/vio" to="/kun0/mavros/local_position/pose"/>
+        <remap from="/imu" to="/kun0/imu/data"/>
+        <remap from="/imu_uav" to="/kun0/imu/data"/>
+        <remap from="/mocap" to="/mocap/xyz1/pose"/>
+        <remap from="/mocap_uav" to="/mocap/xyz0/pose"/>
+        <!-- <remap from="/marker_pixel" to="/kun1/pnp_trt_ros/marker_pixel"/> -->
+        <param name="show" type="bool" value="true" />
+        <!--注意输入自己ID的相机参数和对方ID的landmark参数-->
+        <!-- new landmark -->
+        <param name="uav_config_file" type="string" value="$(find uav_config)/extrinsic_intrinsic/body_four_camera.yaml" />
+       <rosparam>
+        drone_id: 0
+        PnP_time_delay: 0.13
+        enable_tracker: true
+        thres: 0.8
+        ir_binary_threshold: 100
+        overlap_thres: 0.1
+        pnpransac_inlier_min: 6
+        </rosparam>
+    </node>
+    </group>
+
+</launch>
+

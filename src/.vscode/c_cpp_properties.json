@@ -1,0 +1,31 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/star/slam_ws/devel/include/**",
+        "/home/star/dwe_ws/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/star/dwe_ws/src/dwemulti/include/**",
+        "/home/star/dwe_ws/src/sribo-cam/include/**",
+        "/home/star/dwe_ws/src/ftservo-control/include/**",
+        "/home/star/slam_ws/src/map_fusing/include/**",
+        "/home/star/dwe_ws/src/multi_camera_cooperation/include/**",
+        "/home/star/dwe_ws/src/nlink_paser/include/**",
+        "/home/star/slam_ws/src/slamware_ros_sdk_linux-x86_64-gcc5.4-2.8.2-rtm/slamware_ros_sdk_linux-x86_64-gcc5.4/src/slamware_ros_sdk/include/**",
+        "/home/star/slam_ws/src/slamware_ros_sdk_linux-x86_64-gcc5.4-2.8.2-rtm/slamware_ros_sdk_linux-x86_64-gcc5.4/src/slamware_sdk/include/**",
+        "/home/star/dwe_ws/src/uav_config/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

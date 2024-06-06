@@ -1,0 +1,6 @@
+<launch>
+    <node pkg="multi_camera_cooperation" type="base2servogp_broadcaster_ros" name="base2servogp_broadcaster_ros" output="screen" >
+        <!-- <param name="id_up" type="int" value="2" />
+        <param name="id_down" type="int" value="1" /> -->
+    </node>
+</launch>

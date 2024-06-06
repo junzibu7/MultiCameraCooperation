@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="multi_camera_cooperation" type="multi_cam_cooperation_ros" name="multi_cam_cooperation_ros" output="screen" >
+    </node>
+</launch>
