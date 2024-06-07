@@ -148,9 +148,6 @@ public:
     Eigen::Matrix4Xd T_base_to_camC = Eigen::Matrix4d::Identity();
     Eigen::Matrix4Xd T_base_to_camD = Eigen::Matrix4d::Identity();
 
-    Eigen::Matrix3Xd world_to_cameraA_R = Eigen::Matrix3d::Identity();
-    Eigen::Matrix3Xd cameraA_to_world_R = Eigen::Matrix3d::Identity();
-
     Eigen::Matrix3d R_base_to_camA = Eigen::Matrix3d::Identity();
     Eigen::Matrix3d R_base_to_camB = Eigen::Matrix3d::Identity();
     Eigen::Matrix3d R_base_to_camC = Eigen::Matrix3d::Identity();
@@ -163,9 +160,6 @@ public:
     Eigen::Quaterniond q_base_to_camB = Eigen::Quaterniond::Identity();
     Eigen::Quaterniond q_base_to_camC = Eigen::Quaterniond::Identity();
     Eigen::Quaterniond q_base_to_camD = Eigen::Quaterniond::Identity();
-
-    Eigen::Vector3d uav_vicon_pos = Eigen::Vector3d::Zero();
-    Eigen::Vector3d frame_vicon_pos = Eigen::Vector3d::Zero();
     
     Eigen::Vector3d vicon_pnp_error = Eigen::Vector3d::Zero();
     //==================== transform ====================//
@@ -176,18 +170,12 @@ public:
     ros::Publisher pub_base_to_coopestimation_from_camB;
     ros::Publisher pub_base_to_coopestimation_from_camC;
     ros::Publisher pub_base_to_coopestimation_from_camD;
-    ros::Publisher pub_error_camA;
-    ros::Publisher pub_error_camD;
-
-
 
 
     ros::Subscriber sub_camA_to_estimation;
     ros::Subscriber sub_camB_to_estimation;
     ros::Subscriber sub_camC_to_estimation;
     ros::Subscriber sub_camD_to_estimation;
-    ros::Subscriber vicon_frame_sub;
-    ros::Subscriber uav_vicon_pos_sub;
     
 
     //===================== message ==============================//
@@ -196,9 +184,6 @@ public:
     geometry_msgs::TransformStamped EstimationStampedfromcamB;
     geometry_msgs::TransformStamped EstimationStampedfromcamC;
     geometry_msgs::TransformStamped EstimationStampedfromcamD;
-
-    geometry_msgs::TransformStamped error_camA_vector;
-    geometry_msgs::TransformStamped error_camD_vector;
 
     //===================== message ==============================//
 
@@ -224,8 +209,6 @@ public:
     void T_base_to_EstimationfromcamC_callback(const geometry_msgs::TransformStamped &base_to_camC);
     void T_base_to_EstimationfromcamD_callback(const geometry_msgs::TransformStamped &base_to_camD);
     void Vicon_pnp_test_frame(const geometry_msgs::PoseStamped::ConstPtr &msg);
-    void Vicon_uav_pos(const geometry_msgs::PoseStamped::ConstPtr &msg);
-
 
     void toRotationMatrix(float x, float y,float z,float w,Eigen::Matrix3Xd &R);
     /**
