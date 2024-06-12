@@ -373,7 +373,7 @@ bool PnPTargetNodeROS::Square_shape_identity(vector<cv::Point2f> &pointsVector){
         return pt1.x < pt2.x;
     });
 
-    std::vector<cv::Point2f> marker_pixels_left(pointsVector.begin(), pointsVector.begin() + 2);
+    std::vector<cv::Point2f> marker_pixels_left(pointsVector.begin(), pointsVector.begin() + 1);
     std::vector<cv::Point2f> marker_pixels_right(pointsVector.begin() + 2, pointsVector.end());
 
     sort(marker_pixels_left.begin(), marker_pixels_left.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
@@ -393,21 +393,21 @@ bool PnPTargetNodeROS::Square_shape_identity(vector<cv::Point2f> &pointsVector){
     // 清空原始向量，并用排序后的点填充它
 
 
-    // check whether the edegs are parallel
-    Eigen::Vector2d linkvector0 = subtractPoints(marker_pixels_sorted[0], marker_pixels_sorted[1]);
-    Eigen::Vector2d linkvector1 = subtractPoints(marker_pixels_sorted[1], marker_pixels_sorted[2]);
-    Eigen::Vector2d linkvector2 = subtractPoints(marker_pixels_sorted[2], marker_pixels_sorted[3]);
-    Eigen::Vector2d linkvector3 = subtractPoints(marker_pixels_sorted[3], marker_pixels_sorted[0]);
-    cout<<marker_pixels_sorted<<endl;
-    ROS_INFO("linkvector0:%f,%f",linkvector0[0],linkvector0[1]);
-    ROS_INFO("linkvector1:%f,%f",linkvector1[0],linkvector1[1]);
-    ROS_INFO("linkvector2:%f,%f",linkvector2[0],linkvector2[1]);
-    ROS_INFO("linkvector3:%f,%f",linkvector3[0],linkvector3[1]);
-    ROS_INFO("vectorAngle(linkvector0, linkvector2, 1):%f",vectorAngle(linkvector0, linkvector2, 1));
-    ROS_INFO("vectorAngle(linkvector1, linkvector3, 1):%f",vectorAngle(linkvector1, linkvector3, 1));
-    if((abs(vectorAngle(linkvector0, linkvector2, 1) - 180) > 20) || (abs(vectorAngle(linkvector1, linkvector3, 1) - 180) > 20)){
-        return false;
-    }
+    // // check whether the edegs are parallel
+    // Eigen::Vector2d linkvector0 = subtractPoints(marker_pixels_sorted[0], marker_pixels_sorted[1]);
+    // Eigen::Vector2d linkvector1 = subtractPoints(marker_pixels_sorted[1], marker_pixels_sorted[2]);
+    // Eigen::Vector2d linkvector2 = subtractPoints(marker_pixels_sorted[2], marker_pixels_sorted[3]);
+    // Eigen::Vector2d linkvector3 = subtractPoints(marker_pixels_sorted[3], marker_pixels_sorted[0]);
+    // cout<<marker_pixels_sorted<<endl;
+    // ROS_INFO("linkvector0:%f,%f",linkvector0[0],linkvector0[1]);
+    // ROS_INFO("linkvector1:%f,%f",linkvector1[0],linkvector1[1]);
+    // ROS_INFO("linkvector2:%f,%f",linkvector2[0],linkvector2[1]);
+    // ROS_INFO("linkvector3:%f,%f",linkvector3[0],linkvector3[1]);
+    // ROS_INFO("vectorAngle(linkvector0, linkvector2, 1):%f",vectorAngle(linkvector0, linkvector2, 1));
+    // ROS_INFO("vectorAngle(linkvector1, linkvector3, 1):%f",vectorAngle(linkvector1, linkvector3, 1));
+    // if((abs(vectorAngle(linkvector0, linkvector2, 1) - 180) > 20) || (abs(vectorAngle(linkvector1, linkvector3, 1) - 180) > 20)){
+    //     return false;
+    // }
 
 
     pointsVector.clear();

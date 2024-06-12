@@ -94,9 +94,9 @@ void LandmarkExtractionNodeROS::landmark_pose_extract(){
     ir_img_color_show = cv::Mat::zeros(ir_img.size(), CV_8UC3);
     cv::cvtColor(ir_img, ir_img_color_show, CV_GRAY2BGR);
     //光流追踪
-    if(opticalReadyFlag){
-        opticalGoodFlag = optical_flow(ir_img,marker_pixels);
-    }
+    // if(opticalReadyFlag){
+    //     opticalGoodFlag = optical_flow(ir_img,marker_pixels);
+    // }
     //如果光流追踪失败，则重新清除marker,然后进行ROI
     if(!opticalGoodFlag){
         ROS_WARN("optical flow fails, try to roi detect!");
@@ -197,7 +197,8 @@ bool LandmarkExtractionNodeROS::binary_threshold(cv::Mat &frame, vector<cv::Poin
     while(1){
         //二值化及膨胀腐蚀
         threshold(frame, ir_binary, ir_binary_threshold, 255, cv::THRESH_BINARY);
-        cv::erode(ir_binary, ir_erode, erodeElement);
+        // cv::erode(ir_binary, ir_erode, erodeElement);
+        ir_erode = ir_binary;
         auto ir_erode_dilate_img = cv_bridge::CvImage(std_msgs::Header(), "mono8", ir_erode).toImageMsg();
         pub_ir_erode_dilate_img.publish(ir_erode_dilate_img);
         //寻找轮廓
@@ -237,13 +238,15 @@ bool LandmarkExtractionNodeROS::binary_threshold(cv::Mat &frame, vector<cv::Poin
         }
     }
 
+    // filter the contours
+    for (int i = 0; i < ir_contours_unfiltered.size(); i++){
+            // double area = cv::contourArea(ir_contours_unfiltered[i]);
+            // ROS_INFO("the area = %f", area);
+            // if(area < max_area){
+            //     ir_contours.push_back(ir_contours_unfiltered[i]);
+            //   }
 
-    for (int i=0;i<ir_contours_unfiltered.size();i++){
-            double area = cv::contourArea(ir_contours_unfiltered[i]);
-            ROS_INFO("the area = %f", area);
-            if(area < max_area){
-                ir_contours.push_back(ir_contours_unfiltered[i]);
-            }
+            ir_contours.push_back(ir_contours_unfiltered[i]);
     }
     ir_contours_unfiltered.clear();
     cout << "filtered_contours = " << ir_contours.size() << endl;
@@ -254,8 +257,7 @@ bool LandmarkExtractionNodeROS::binary_threshold(cv::Mat &frame, vector<cv::Poin
     for (int i = 0; i < ir_contours.size(); i++) {
         cv::Rect bbox;
         bbox = boundingRect(ir_contours[i]);
-        cv::rectangle(ir_binary_color_show, bbox, cv::Scalar(0, 255, 0), 1);
-    }
+        cv::rectangle(ir_binary_color_show, bbox, cv::Scalar(0, 255, 0), 5);}
     auto ir_binary_msg_img = cv_bridge::CvImage(std_msgs::Header(), "bgr8", ir_binary_color_show).toImageMsg();
     pub_ir_binary_img.publish(ir_binary_msg_img);
 
@@ -584,15 +586,15 @@ bool LandmarkExtractionNodeROS::Square_shape_identity(vector<cv::Point2f> &point
     // 清空原始向量，并用排序后的点填充它
 
 
-    // check whether the edegs are parallel
-    Eigen::Vector2d linkvector0 = subtractPoints(marker_pixels_sorted[0], marker_pixels_sorted[1]);
-    Eigen::Vector2d linkvector1 = subtractPoints(marker_pixels_sorted[1], marker_pixels_sorted[2]);
-    Eigen::Vector2d linkvector2 = subtractPoints(marker_pixels_sorted[2], marker_pixels_sorted[3]);
-    Eigen::Vector2d linkvector3 = subtractPoints(marker_pixels_sorted[3], marker_pixels_sorted[0]);
+    // // check whether the edegs are parallel
+    // Eigen::Vector2d linkvector0 = subtractPoints(marker_pixels_sorted[0], marker_pixels_sorted[1]);
+    // Eigen::Vector2d linkvector1 = subtractPoints(marker_pixels_sorted[1], marker_pixels_sorted[2]);
+    // Eigen::Vector2d linkvector2 = subtractPoints(marker_pixels_sorted[2], marker_pixels_sorted[3]);
+    // Eigen::Vector2d linkvector3 = subtractPoints(marker_pixels_sorted[3], marker_pixels_sorted[0]);
 
-    if((abs(vectorAngle(linkvector0, linkvector2, 1) - 180) > 20) || (abs(vectorAngle(linkvector1, linkvector3, 1) - 180) > 20)){
-        return false;
-    }
+    // if((abs(vectorAngle(linkvector0, linkvector2, 1) - 180) > 20) || (abs(vectorAngle(linkvector1, linkvector3, 1) - 180) > 20)){
+    //     return false;
+    // }
 
 
     pointsVector.clear();
