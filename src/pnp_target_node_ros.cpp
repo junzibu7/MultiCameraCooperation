@@ -279,15 +279,15 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     
 
 //=====================================写入文件进一步分析======================================//
-    t_cam_to_estimation_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/t_body_to_drone_camC.txt",ios::out|ios::app);
-	//输入你想写入的内容 
-	t_cam_to_estimation_file<<t_cam_to_estimation[0]<<" "<<t_cam_to_estimation[1]<<" "<<t_cam_to_estimation[2]<<endl;
-	t_cam_to_estimation_file.close();
+    // t_cam_to_estimation_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/t_body_to_drone_camC.txt",ios::out|ios::app);
+	// //输入你想写入的内容 
+	// t_cam_to_estimation_file<<t_cam_to_estimation[0]<<" "<<t_cam_to_estimation[1]<<" "<<t_cam_to_estimation[2]<<endl;
+	// t_cam_to_estimation_file.close();
 
-    q_cam_to_estimation_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/q_cam_to_estimation_camC.txt",ios::out|ios::app);
-	//输入你想写入的内容 
-	q_cam_to_estimation_file<<q_cam_to_estimation.w()<<" "<<q_cam_to_estimation.x()<<" "<<q_cam_to_estimation.y()<<" "<<q_cam_to_estimation.z()<<endl;
-	q_cam_to_estimation_file.close();
+    // q_cam_to_estimation_file.open("/home/hezijia/catkin_ws/src/multi_camera_cooperation/data/q_cam_to_estimation_camC.txt",ios::out|ios::app);
+	// //输入你想写入的内容 
+	// q_cam_to_estimation_file<<q_cam_to_estimation.w()<<" "<<q_cam_to_estimation.x()<<" "<<q_cam_to_estimation.y()<<" "<<q_cam_to_estimation.z()<<endl;
+	// q_cam_to_estimation_file.close();
 //=====================================写入文件进一步分析======================================//
 
     printf(GREEN "[PNP] t_cam_to_estimation = %.3f, %.3f, %.3f | q_cam_to_estimation (wxyz) = %.3f, %.3f, %.3f, %.3f\n" RESET,
@@ -329,6 +329,7 @@ void PnPTargetNodeROS::landmark_pose_solve(){
 // //======================================= Ground Truth ============================================================//
 
 }
+
 bool PnPTargetNodeROS::Square_shape_identity(vector<cv::Point2f> &pointsVector){
 
     marker_pixels_sorted.clear();
@@ -562,6 +563,7 @@ bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
 //    target_pos_in_img[1] = min(max(y_avg, -2.0), 2.0);
 //    target_pos_in_img[2] = min(max(z_avg, 0.5), 4.0);
 //    printf(YELLOW "[PnP min max] x: %.3f, y: %.3f, z: %.3f \n" RESET, target_pos_in_img[0], target_pos_in_img[1], target_pos_in_img[2]);
+    
     return true;
 }
 

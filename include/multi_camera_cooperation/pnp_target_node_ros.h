@@ -83,6 +83,7 @@ public:
     ros::Publisher pub_drone_vicon_pose;
     ros::Publisher pub_relative_pose_mocap;
     ros::Publisher pub_cam_to_estimation;
+    
 
     std::string marker_pixel_topic;
     ros::Time stamp;
@@ -250,6 +251,7 @@ public:
      */
     bool T_shape_identify(vector<cv::Point2f> &pointsVector);
     bool Square_shape_identity(vector<cv::Point2f> &pointsVector);
+    
     bool pnp_process(std::vector<cv::Point2f> &pointsVector);
     std::string Convert(float Num);
     

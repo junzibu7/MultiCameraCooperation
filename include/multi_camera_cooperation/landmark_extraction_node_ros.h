@@ -56,6 +56,7 @@
 // #define IMG_COMPRESSED
 #define SHOW_ORIGIN_IMG
 #define ENABLE_VISUALIZATION
+#define USE_4_Point
 
 using namespace std;
 
@@ -158,6 +159,10 @@ public:
     tf::Quaternion q_camera_to_drone = tf::Quaternion();
     geometry_msgs::PoseStamped msg_target_pose_from_img;
 
+    std::vector<cv::Point2f> marker_pixels_sorted;
+    std::vector<cv::Point2f> marker_pixels_up;
+    std::vector<cv::Point2f> marker_pixels_down;
+
     ///------------ Complementary filter for calculate position velocity state ----------///
     // std::shared_ptr<ComplementaryFilter> filter;
 
@@ -216,6 +221,7 @@ public:
     // bool pnp_process(std::vector<cv::Point2f> &pointsVector);
     bool refine_pixel(std::vector<cv::Point2f> &pts_raw, std::vector<cv::Point2f> &pts_refine, cv::Mat &img);
     std::string Convert(float Num);
+    bool Square_shape_identity(vector<cv::Point2f> &pointsVector);
     
 };
 

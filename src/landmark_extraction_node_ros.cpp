@@ -109,26 +109,32 @@ void LandmarkExtractionNodeROS::landmark_pose_extract(){
         pub_marker_pixel.publish(landmark_msg);
     }
 
-#ifdef ENABLE_VISUALIZATION
-//可视化求解情况
-//   if(pnpGoodFlag){
-//     cv::putText(ir_img_color_show,
-//                 "pnp",
-//                 cv::Point(470, 20), cv::FONT_HERSHEY_TRIPLEX ,0.65,cv::Scalar(0,255,0),1,false);
-//   }else{
-//     cv::putText(ir_img_color_show,
-//                 "pnp",
-//                 cv::Point(470, 20), cv::FONT_HERSHEY_TRIPLEX ,0.65,cv::Scalar(0,0,255),1,false);
-//   }
+#ifdef USE_4_Point
+    if(marker_pixels.size() == landmark_num){
+       Square_shape_identity(marker_pixels);
+    }
+#endif
 
-//画横线框，和图像中心点，校验求解目标原点是否正确
-//  cv::circle(ir_img_color_show,cv::Point2f(320,240),2,cv::Scalar(255,0,0),1);
-//  cv::line(ir_img_color_show,cv::Point2f(0,240),cv::Point2f(640,240),cv::Scalar(255,0,0),1);
-//  cv::line(ir_img_color_show,cv::Point2f(320,0),cv::Point2f(320,480),cv::Scalar(255,0,0),1);
-//  cv::namedWindow("ir_img_color_show", cv::WINDOW_NORMAL);
-//  cv::resizeWindow("ir_img_color_show", 2560, 1920);
-//  cv::imshow("ir_img_color_show", ir_img_color_show);
-//  cv::waitKey(1);
+#ifdef ENABLE_VISUALIZATION
+    // // 可视化求解情况
+    // if(pnpGoodFlag){
+    //     cv::putText(ir_img_color_show,
+    //                 "pnp",
+    //                 cv::Point(470, 20), cv::FONT_HERSHEY_TRIPLEX ,0.65,cv::Scalar(0,255,0),1,false);
+    // }else{
+    //     cv::putText(ir_img_color_show,
+    //                 "pnp",
+    //                 cv::Point(470, 20), cv::FONT_HERSHEY_TRIPLEX ,0.65,cv::Scalar(0,0,255),1,false);
+    // }
+
+    // 画横线框，和图像中心点，校验求解目标原点是否正确
+    // cv::circle(ir_img_color_show,cv::Point2f(320,240),2,cv::Scalar(255,0,0),1);
+    // cv::line(ir_img_color_show,cv::Point2f(0,240),cv::Point2f(640,240),cv::Scalar(255,0,0),1);
+    // cv::line(ir_img_color_show,cv::Point2f(320,0),cv::Point2f(320,480),cv::Scalar(255,0,0),1);
+    // cv::namedWindow("ir_img_color_show", cv::WINDOW_NORMAL);
+    // cv::resizeWindow("ir_img_color_show", 2560, 1920);
+    // cv::imshow("ir_img_color_show", ir_img_color_show);
+    // cv::waitKey(1);
     
     for (int i = 0; i < marker_pixels.size(); i++) { 
         cv::circle(ir_img_color_show, cv::Point2i(marker_pixels[i].x, marker_pixels[i].y), 5,  cv::Scalar(0,0,255), 1, cv::LINE_AA);
@@ -515,3 +521,85 @@ void LandmarkExtractionNodeROS::landmark_msg_generate(vector<cv::Point2f> &point
     }
 }
 
+bool LandmarkExtractionNodeROS::Square_shape_identity(vector<cv::Point2f> &pointsVector){
+
+    marker_pixels_sorted.clear();
+    marker_pixels_up.clear();
+    marker_pixels_down.clear();
+
+    bool SquareShapeGoodFlag = true;
+    
+    if (pointsVector.size() != 4)
+    {
+        return false;
+    }
+
+//     // we choose to sort the points by their y coordinate first, then by their x coordinate
+//    sort(pointsVector.begin(), pointsVector.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
+//         return pt1.y < pt2.y;
+//     });
+
+//     std::vector<cv::Point2f> marker_pixels_up(pointsVector.begin(), pointsVector.begin() + 2);
+//     std::vector<cv::Point2f> marker_pixels_down(pointsVector.begin() + 2, pointsVector.end());
+
+//     sort(marker_pixels_up.begin(), marker_pixels_up.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
+//         return pt1.x > pt2.x;
+//     });
+
+//     sort(marker_pixels_down.begin(), marker_pixels_down.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
+//         return pt1.x > pt2.x;
+//     });
+
+
+
+//     marker_pixels_sorted.push_back(marker_pixels_up[0]);
+//     marker_pixels_sorted.push_back(marker_pixels_down[0]);
+//     marker_pixels_sorted.push_back(marker_pixels_down[1]); 
+//     marker_pixels_sorted.push_back(marker_pixels_up[1]);
+
+
+    // we choose to sort the points by their x coordinate first, then by their y coordinate
+
+    sort(pointsVector.begin(), pointsVector.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
+        return pt1.x < pt2.x;
+    });
+
+    std::vector<cv::Point2f> marker_pixels_left(pointsVector.begin(), pointsVector.begin() + 2);
+    std::vector<cv::Point2f> marker_pixels_right(pointsVector.begin() + 2, pointsVector.end());
+
+    sort(marker_pixels_left.begin(), marker_pixels_left.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
+        return pt1.y < pt2.y;
+    });
+
+    sort(marker_pixels_right.begin(), marker_pixels_right.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
+        return pt1.y < pt2.y;
+    });
+
+    marker_pixels_sorted.push_back(marker_pixels_right[0]);
+    marker_pixels_sorted.push_back(marker_pixels_right[1]);
+    marker_pixels_sorted.push_back(marker_pixels_left[1]);
+    marker_pixels_sorted.push_back(marker_pixels_left[0]);
+
+
+    // 清空原始向量，并用排序后的点填充它
+
+
+    // check whether the edegs are parallel
+    Eigen::Vector2d linkvector0 = subtractPoints(marker_pixels_sorted[0], marker_pixels_sorted[1]);
+    Eigen::Vector2d linkvector1 = subtractPoints(marker_pixels_sorted[1], marker_pixels_sorted[2]);
+    Eigen::Vector2d linkvector2 = subtractPoints(marker_pixels_sorted[2], marker_pixels_sorted[3]);
+    Eigen::Vector2d linkvector3 = subtractPoints(marker_pixels_sorted[3], marker_pixels_sorted[0]);
+
+    if((abs(vectorAngle(linkvector0, linkvector2, 1) - 180) > 20) || (abs(vectorAngle(linkvector1, linkvector3, 1) - 180) > 20)){
+        return false;
+    }
+
+
+    pointsVector.clear();
+    pointsVector = marker_pixels_sorted;
+
+    // std::cout<<pointsVector<<std::endl;
+    return true;
+    
+
+}
