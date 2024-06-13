@@ -109,12 +109,6 @@ void LandmarkExtractionNodeROS::landmark_pose_extract(){
         pub_marker_pixel.publish(landmark_msg);
     }
 
-#ifdef USE_4_Point
-    if(marker_pixels.size() == landmark_num){
-       Square_shape_identity(marker_pixels);
-    }
-#endif
-
 #ifdef ENABLE_VISUALIZATION
     // // 可视化求解情况
     // if(pnpGoodFlag){
@@ -135,6 +129,11 @@ void LandmarkExtractionNodeROS::landmark_pose_extract(){
     // cv::resizeWindow("ir_img_color_show", 2560, 1920);
     // cv::imshow("ir_img_color_show", ir_img_color_show);
     // cv::waitKey(1);
+#ifdef USE_4_Point
+    if(marker_pixels.size() == landmark_num){
+       Square_shape_identity(marker_pixels);
+    }
+#endif
     
     for (int i = 0; i < marker_pixels.size(); i++) { 
         cv::circle(ir_img_color_show, cv::Point2i(marker_pixels[i].x, marker_pixels[i].y), 5,  cv::Scalar(0,0,255), 1, cv::LINE_AA);

@@ -338,56 +338,56 @@ bool PnPTargetNodeROS::Square_shape_identity(vector<cv::Point2f> &pointsVector){
 
     bool SquareShapeGoodFlag = true;
     
-    if (pointsVector.size() != 4)
+    if(pointsVector.size() != 4)
     {
         return false;
     }
 
-//     // we choose to sort the points by their y coordinate first, then by their x coordinate
-//    sort(pointsVector.begin(), pointsVector.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
-//         return pt1.y < pt2.y;
-//     });
+    // we choose to sort the points by their y coordinate first, then by their x coordinate
+    sort(pointsVector.begin(), pointsVector.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
+        return pt1.y < pt2.y;
+    });
 
-//     std::vector<cv::Point2f> marker_pixels_up(pointsVector.begin(), pointsVector.begin() + 2);
-//     std::vector<cv::Point2f> marker_pixels_down(pointsVector.begin() + 2, pointsVector.end());
+    std::vector<cv::Point2f> marker_pixels_up(pointsVector.begin(), pointsVector.begin() + 2);
+    std::vector<cv::Point2f> marker_pixels_down(pointsVector.begin() + 2, pointsVector.end());
 
-//     sort(marker_pixels_up.begin(), marker_pixels_up.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
-//         return pt1.x > pt2.x;
-//     });
+    sort(marker_pixels_up.begin(), marker_pixels_up.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
+        return pt1.x > pt2.x;
+    });
 
-//     sort(marker_pixels_down.begin(), marker_pixels_down.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
-//         return pt1.x > pt2.x;
-//     });
+    sort(marker_pixels_down.begin(), marker_pixels_down.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
+        return pt1.x > pt2.x;
+    });
 
 
 
-//     marker_pixels_sorted.push_back(marker_pixels_up[0]);
-//     marker_pixels_sorted.push_back(marker_pixels_down[0]);
-//     marker_pixels_sorted.push_back(marker_pixels_down[1]); 
-//     marker_pixels_sorted.push_back(marker_pixels_up[1]);
+    marker_pixels_sorted.push_back(marker_pixels_up[0]);
+    marker_pixels_sorted.push_back(marker_pixels_down[0]);
+    marker_pixels_sorted.push_back(marker_pixels_down[1]); 
+    marker_pixels_sorted.push_back(marker_pixels_up[1]);
 
 
     // we choose to sort the points by their x coordinate first, then by their y coordinate
 
-    sort(pointsVector.begin(), pointsVector.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
-        return pt1.x < pt2.x;
-    });
+    // sort(pointsVector.begin(), pointsVector.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
+    //     return pt1.x < pt2.x;
+    // });
 
-    std::vector<cv::Point2f> marker_pixels_left(pointsVector.begin(), pointsVector.begin() + 1);
-    std::vector<cv::Point2f> marker_pixels_right(pointsVector.begin() + 2, pointsVector.end());
+    // std::vector<cv::Point2f> marker_pixels_left(pointsVector.begin(), pointsVector.begin() + 1);
+    // std::vector<cv::Point2f> marker_pixels_right(pointsVector.begin() + 2, pointsVector.end());
 
-    sort(marker_pixels_left.begin(), marker_pixels_left.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
-        return pt1.y < pt2.y;
-    });
+    // sort(marker_pixels_left.begin(), marker_pixels_left.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
+    //     return pt1.y < pt2.y;
+    // });
 
-    sort(marker_pixels_right.begin(), marker_pixels_right.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
-        return pt1.y < pt2.y;
-    });
+    // sort(marker_pixels_right.begin(), marker_pixels_right.end(), [](const cv::Point2f& pt1, const cv::Point2f& pt2) {
+    //     return pt1.y < pt2.y;
+    // });
 
-    marker_pixels_sorted.push_back(marker_pixels_right[0]);
-    marker_pixels_sorted.push_back(marker_pixels_right[1]);
-    marker_pixels_sorted.push_back(marker_pixels_left[1]);
-    marker_pixels_sorted.push_back(marker_pixels_left[0]);
+    // marker_pixels_sorted.push_back(marker_pixels_right[0]);
+    // marker_pixels_sorted.push_back(marker_pixels_right[1]);
+    // marker_pixels_sorted.push_back(marker_pixels_left[1]);
+    // marker_pixels_sorted.push_back(marker_pixels_left[0]);
 
 
     // 清空原始向量，并用排序后的点填充它
@@ -409,14 +409,13 @@ bool PnPTargetNodeROS::Square_shape_identity(vector<cv::Point2f> &pointsVector){
     //     return false;
     // }
 
-
     pointsVector.clear();
     pointsVector = marker_pixels_sorted;
 
 
 
     ROS_INFO("we are in Square_shape_identity!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!111");
-    cout<<pointsVector<<endl;
+    // cout<<pointsVector<<endl;
 
     // std::cout<<pointsVector<<std::endl;
     return true;
@@ -507,15 +506,15 @@ bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
         if(!Square_shape_identity(pointsVector)){
             return false;
         }
-    }else{
-        return false;
-    }
+        }else{
+            return false;
+        }
 #endif
 
     //solvePnP
     // solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_IPPE);
     // ROS_INFO("1");
-    // std::cout<<pointsVector<<std::endl;
+    std::cout<<pointsVector<<std::endl;
     // std::cout<<drone_landmarks_cv<<std::endl;
     // ROS_INFO("2");
     solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false);

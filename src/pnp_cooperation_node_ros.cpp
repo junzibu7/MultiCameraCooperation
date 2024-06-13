@@ -26,7 +26,7 @@ void PNPCooperationNodeROS::init(ros::NodeHandle &nh, tf::TransformBroadcaster* 
     sub_camB_to_estimation = nh.subscribe("/camB/single_cam_process_ros/ir_mono/T_cam_to_estimation", 1, &PNPCooperationNodeROS::T_base_to_EstimationfromcamB_callback, this);
     sub_camC_to_estimation = nh.subscribe("/camC/single_cam_process_ros/ir_mono/T_cam_to_estimation", 1, &PNPCooperationNodeROS::T_base_to_EstimationfromcamC_callback, this);
     sub_camD_to_estimation = nh.subscribe("/camD/single_cam_process_ros/ir_mono/T_cam_to_estimation", 1, &PNPCooperationNodeROS::T_base_to_EstimationfromcamD_callback, this);
-    pub_base_to_coopestimation = nh.advertise<geometry_msgs::TransformStamped>("T_base_to_coopestimation", 1);
+    // pub_base_to_coopestimation = nh.advertise<geometry_msgs::TransformStamped>("T_base_to_coopestimation", 1);
 
     pub_base_to_coopestimation_from_camA = nh.advertise<geometry_msgs::TransformStamped>("T_base_to_coopestimation_from_camA", 1);
     pub_base_to_coopestimation_from_camB = nh.advertise<geometry_msgs::TransformStamped>("T_base_to_coopestimation_from_camB", 1);
