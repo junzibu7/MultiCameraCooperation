@@ -23,10 +23,5 @@ int main(int argc, char **argv)
 
     pnp_coop_manager.init(nh, br, lrA, lrB, lrC, lrD);
 
-    while (ros::ok())
-    {
-        pnp_coop_manager.cam_estimation_fuse();
-        ros::spinOnce();
-        rate.sleep();
-    }
+    ros::spin();
 }

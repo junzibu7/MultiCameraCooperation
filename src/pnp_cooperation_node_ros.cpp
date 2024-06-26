@@ -7,8 +7,6 @@ PNPCooperationNodeROS::PNPCooperationNodeROS(){
     // empty
 }
 
-
-
 void PNPCooperationNodeROS::init(ros::NodeHandle &nh, tf::TransformBroadcaster* br, tf::TransformListener* lrA, tf::TransformListener* lrB, tf::TransformListener* lrC, tf::TransformListener* lrD)
 {
     br_base_to_coopestimation = br;
@@ -18,9 +16,9 @@ void PNPCooperationNodeROS::init(ros::NodeHandle &nh, tf::TransformBroadcaster* 
     lr_base_to_camD = lrD;
 
     ROS_INFO("Initial CoopEstimation to Base!");
-    t_coopestimation = tf::Vector3(0, 0, 0);
-    q_coopestimation = tf::Quaternion(1, 0, 0, 0);
-    broadcast_base_to_coopestimation(4);
+    // t_coopestimation = tf::Vector3(0, 0, 0);
+    // q_coopestimation = tf::Quaternion(1, 0, 0, 0);
+    // broadcast_base_to_coopestimation(4);
 
     sub_camA_to_estimation = nh.subscribe("/camA/single_cam_process_ros/ir_mono/T_cam_to_estimation", 1, &PNPCooperationNodeROS::T_base_to_EstimationfromcamA_callback, this);
     sub_camB_to_estimation = nh.subscribe("/camB/single_cam_process_ros/ir_mono/T_cam_to_estimation", 1, &PNPCooperationNodeROS::T_base_to_EstimationfromcamB_callback, this);
@@ -49,7 +47,6 @@ void PNPCooperationNodeROS::T_base_to_EstimationfromcamA_callback(const geometry
         lr_base_to_camA->waitForTransform("base", "camA", ros::Time(0), ros::Duration(1.0));
         lr_base_to_camA->lookupTransform("base", "camA", ros::Time(0), base_to_camA);
         listenercount++;
-        ROS_INFO("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         camAGoodFlag = true;
         t_base_to_camA = TFVector3ToEigenVector3d(base_to_camA.getOrigin());
         q_base_to_camA = TFQuaternionToEigenQuaterniond(base_to_camA.getRotation());
@@ -90,12 +87,11 @@ void PNPCooperationNodeROS::T_base_to_EstimationfromcamA_callback(const geometry
         baseA_to_coopestimation.setRotation(EigenQuaterniondToTFQuaternion(q_base_to_estimationfromcamA));
         baseA_to_coopestimation.stamp_ = ros::Time::now();  
 
-        baseA_to_coopestimation.frame_id_ = "Dbase"; // 父坐标系  
-        baseA_to_coopestimation.child_frame_id_ = "CoopEstimation"; // 子坐标系
+        baseA_to_coopestimation.frame_id_ = "base"; // 父坐标系  
+        baseA_to_coopestimation.child_frame_id_ = "CoopEstimationfromCamA"; // 子坐标系
         tf::transformStampedTFToMsg(baseA_to_coopestimation, EstimationStampedfromcamA);
 
         pub_base_to_coopestimation_from_camA.publish(EstimationStampedfromcamA);
-
     }
     else
     {
@@ -147,8 +143,8 @@ void PNPCooperationNodeROS::T_base_to_EstimationfromcamB_callback(const geometry
         baseB_to_coopestimation.setOrigin(EigenVector3dToTFVector3(t_base_to_estimationfromcamB));
         baseB_to_coopestimation.setRotation(EigenQuaterniondToTFQuaternion(q_base_to_estimationfromcamB));
         baseB_to_coopestimation.stamp_ = ros::Time::now();  
-        baseB_to_coopestimation.frame_id_ = "Dbase"; // 父坐标系  
-        baseB_to_coopestimation.child_frame_id_ = "CoopEstimation"; // 子坐标系
+        baseB_to_coopestimation.frame_id_ = "base"; // 父坐标系  
+        baseB_to_coopestimation.child_frame_id_ = "CoopEstimationfromCamB"; // 子坐标系
         tf::transformStampedTFToMsg(baseB_to_coopestimation, EstimationStampedfromcamB);
 
         pub_base_to_coopestimation_from_camB.publish(EstimationStampedfromcamB);
@@ -205,8 +201,8 @@ void PNPCooperationNodeROS::T_base_to_EstimationfromcamC_callback(const geometry
         baseC_to_coopestimation.setOrigin(EigenVector3dToTFVector3(t_base_to_estimationfromcamC));
         baseC_to_coopestimation.setRotation(EigenQuaterniondToTFQuaternion(q_base_to_estimationfromcamC));
         baseC_to_coopestimation.stamp_ = ros::Time::now();  
-        baseC_to_coopestimation.frame_id_ = "Dbase"; // 父坐标系  
-        baseC_to_coopestimation.child_frame_id_ = "CoopEstimation"; // 子坐标系
+        baseC_to_coopestimation.frame_id_ = "base"; // 父坐标系  
+        baseC_to_coopestimation.child_frame_id_ = "CoopEstimationfromCamC"; // 子坐标系
         tf::transformStampedTFToMsg(baseC_to_coopestimation, EstimationStampedfromcamC);
     
         pub_base_to_coopestimation_from_camC.publish(EstimationStampedfromcamC);
@@ -261,8 +257,8 @@ void PNPCooperationNodeROS::T_base_to_EstimationfromcamD_callback(const geometry
         baseD_to_coopestimation.setOrigin(EigenVector3dToTFVector3(t_base_to_estimationfromcamD));
         baseD_to_coopestimation.setRotation(EigenQuaterniondToTFQuaternion(q_base_to_estimationfromcamD));
         baseD_to_coopestimation.stamp_ = ros::Time::now();  
-        baseD_to_coopestimation.frame_id_ = "Dbase"; // 父坐标系  
-        baseD_to_coopestimation.child_frame_id_ = "CoopEstimation"; // 子坐标系
+        baseD_to_coopestimation.frame_id_ = "base"; // 父坐标系  
+        baseD_to_coopestimation.child_frame_id_ = "CoopEstimationfromCamD"; // 子坐标系
         tf::transformStampedTFToMsg(baseD_to_coopestimation, EstimationStampedfromcamD);
 
         pub_base_to_coopestimation_from_camD.publish(EstimationStampedfromcamD);

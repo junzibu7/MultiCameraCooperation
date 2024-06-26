@@ -193,9 +193,16 @@ void PnPTargetNodeROS::drone_imu_cb(const sensor_msgs::Imu::ConstPtr &msg){
 //============================= marker_pixel receive =============================//
 void PnPTargetNodeROS::ir_marker_pixel_cb(const multi_camera_cooperation::landmark::ConstPtr &msg){
     stamp = msg->header.stamp;
-    for (int i = 0; i < msg->x.size(); i++)
+    marker_pixels.clear();
+    for (int i = 0; i < msg->x.size(); i++){
         marker_pixels.emplace_back(cv::Point2f(msg->x[i], msg->y[i]));
+    }
+    auto start = std::chrono::steady_clock::now();
     landmark_pose_solve();
+    auto end = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    std::cout << "landmark_pose_solve程序运行时间: " << duration.count() << " 微秒" << std::endl;
+    
 }
 //============================= marker_pixel receive =============================//
 
@@ -206,7 +213,6 @@ void PnPTargetNodeROS::landmark_pose_solve(){
     if(!pnpGoodFlag){
         marker_pixels.clear();
     }
-
 
 //    pub_target_pose_from_img.publish(msg_target_pose_from_img);
 //  ros::Time t = ros::Time().fromSec(stamp.toSec() - PnP_time_delay);//PnP检测中，由相机捕获、程序处理、滤波等带来的时间延迟
@@ -506,9 +512,9 @@ bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
         if(!Square_shape_identity(pointsVector)){
             return false;
         }
-        }else{
-            return false;
-        }
+    }else{
+        return false;
+    }
 #endif
 
     //solvePnP
@@ -517,7 +523,9 @@ bool PnPTargetNodeROS::pnp_process(vector<cv::Point2f> &pointsVector){
     std::cout<<pointsVector<<std::endl;
     // std::cout<<drone_landmarks_cv<<std::endl;
     // ROS_INFO("2");
-    solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false);
+
+    solvePnP(drone_landmarks_cv, pointsVector, cameraMatrix, distCoeffs, outputRvecRaw, outputTvecRaw, false, cv::SOLVEPNP_IPPE);
+
     Eigen::Vector3d eulerAngles;
     getEulerAngles(outputRvecRaw, eulerAngles, target_q_in_img);
     target_pos_in_img << outputTvecRaw.val[0], outputTvecRaw.val[1], outputTvecRaw.val[2];//转到相机坐标系下
